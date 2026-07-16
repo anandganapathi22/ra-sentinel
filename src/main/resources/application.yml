@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: ra-sentinel
+  sql:
+    init:
+      mode: never
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

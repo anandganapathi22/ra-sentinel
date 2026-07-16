@@ -1,0 +1,10 @@
+.git
+.idea
+.jbeval
+target
+*.iml
+*.log
+.DS_Store
+README.md
+docker-compose*.yml
+Dockerfile

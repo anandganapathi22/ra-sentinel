@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/ra_sentinel}
+    username: ${SPRING_DATASOURCE_USERNAME:ra_sentinel}
+    password: ${SPRING_DATASOURCE_PASSWORD:ra_sentinel}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+  sql:
+    init:
+      mode: always
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always

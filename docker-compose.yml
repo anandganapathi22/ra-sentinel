@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ra-sentinel-postgres
+    environment:
+      POSTGRES_DB: ra_sentinel
+      POSTGRES_USER: ra_sentinel
+      POSTGRES_PASSWORD: ra_sentinel
+    ports:
+      - "${RA_SENTINEL_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - ra-sentinel-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ra_sentinel -d ra_sentinel"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  ra-sentinel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ra-sentinel:local
+    container_name: ra-sentinel
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${RA_SENTINEL_PORT:-8080}:8080"
+    environment:
+      SERVER_PORT: 8080
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ra_sentinel
+      SPRING_DATASOURCE_USERNAME: ra_sentinel
+      SPRING_DATASOURCE_PASSWORD: ra_sentinel
+      JAVA_OPTS: "${JAVA_OPTS:-}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  ra-sentinel-postgres-data:
