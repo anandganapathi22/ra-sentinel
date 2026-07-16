@@ -28,6 +28,23 @@ Expected:
 ```text
 ra-sentinel            Up healthy   0.0.0.0:8081->8080
 ra-sentinel-postgres   Up healthy   0.0.0.0:5433->5432
+ra-sentinel-adminer    Up           0.0.0.0:8082->8080
+```
+
+Open Adminer:
+
+```text
+http://localhost:8082
+```
+
+Login:
+
+```text
+System: PostgreSQL
+Server: postgres
+Username: ra_sentinel
+Password: ra_sentinel
+Database: ra_sentinel
 ```
 
 ## Run Automated Tests
@@ -105,6 +122,36 @@ Expected:
 ```text
 The API returns the saved audit run.
 PostgreSQL count is greater than 0.
+```
+
+## Operational Data Source Test
+
+Purpose: prove the Docker profile reads agent source data from PostgreSQL.
+
+Update a source table, call the agent endpoint, then restore the value.
+
+```powershell
+docker --context default exec ra-sentinel-postgres `
+  psql -U ra_sentinel -d ra_sentinel `
+  -c "update tas_agreement_status set state = 'SIGNED' where ra_id = '489965957';"
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "$baseUrl/api/ops-agents/ra-troubleshooting" `
+  -ContentType "application/json" `
+  -Body '{"raId":"489965957","location":"ORD","question":"Customer completed eRA but agreement is not visible in TAS."}'
+
+docker --context default exec ra-sentinel-postgres `
+  psql -U ra_sentinel -d ra_sentinel `
+  -c "update tas_agreement_status set state = 'API_TIMEOUT' where ra_id = '489965957';"
+```
+
+Expected:
+
+```text
+When TAS state is changed away from API_TIMEOUT in the database, the agent no
+longer returns the TAS timeout root cause. Restoring the row restores the
+original test behavior.
 ```
 
 Direct table inspection:

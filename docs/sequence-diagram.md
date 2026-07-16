@@ -22,7 +22,7 @@ sequenceDiagram
     participant Logs as Logs/Correlation Events
     participant Policy as Guardrail Policy
     participant Audit as Audit Store
-    participant PG as PostgreSQL<br/>agent_audit_runs
+    participant PG as PostgreSQL<br/>source tables + agent_audit_runs
     participant Human as Human Approver
     participant Ticket as Incident/Audit Ticket
 
@@ -32,27 +32,35 @@ sequenceDiagram
 
     Agent->>Tools: Read-only evidence collection
     par Query eRA
+        Tools->>PG: select era_session_status
         Tools->>ERA: getSessionStatus(raId)
         ERA-->>Tools: eRA status, last step, activity
     and Query STL
+        Tools->>PG: select stl_submission_metadata
         Tools->>STL: getSubmissionMetadata(raId)
         STL-->>Tools: submit status, email, language, correlation ID
     and Query RMS
+        Tools->>PG: select rms_rental_agreements
         Tools->>RMS: getRentalAgreement(raId)
         RMS-->>Tools: RA status, customer data
     and Query Dash
+        Tools->>PG: select dash_counter_states
         Tools->>Dash: getCounterState(raId)
         Dash-->>Tools: counter workflow state
     and Query TAS
+        Tools->>PG: select tas_agreement_status
         Tools->>TAS: getAgreementStatus(raId)
         TAS-->>Tools: agreement state, hash, agreement ID
     and Query S3
+        Tools->>PG: select s3_signed_pdf_status
         Tools->>S3: getSignedPdfStatus(raId)
         S3-->>Tools: PDF present/missing, bucket, object key
     and Query Keyspace
+        Tools->>PG: select keyspace_submission_records
         Tools->>Keyspace: getSubmissionRecord(raId)
         Keyspace-->>Tools: metadata present/missing, sync status
     and Query Logs
+        Tools->>PG: select correlation_events
         Tools->>Logs: getEvents(raId)
         Logs-->>Tools: ordered correlation events
     end
@@ -125,17 +133,21 @@ sequenceDiagram
     participant App as ra-sentinel App
     participant Health as Actuator Health
     participant API as Agent API
+    participant Tools as JDBC Tool Adapters
     participant Audit as JDBC Audit Store
 
     Dev->>Compose: docker compose up --build -d
     Compose->>PG: Start PostgreSQL
     PG-->>Compose: Healthy
     Compose->>App: Start Spring Boot with docker profile
-    App->>PG: Run schema.sql
+    App->>PG: Run schema.sql<br/>create and seed source/audit tables
     App->>Health: Register DB health contributor
     App-->>Compose: Healthy
 
     Dev->>API: POST /api/agent/ra-completion
+    API->>Tools: Load RA source state
+    Tools->>PG: select source tables
+    PG-->>Tools: eRA/RMS/Dash/STL/TAS/S3/Keyspace/log data
     API->>Audit: Save diagnostic run
     Audit->>PG: insert into agent_audit_runs
     PG-->>Audit: saved

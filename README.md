@@ -34,8 +34,9 @@ Local production-like runtime:
 Docker Compose
   -> ra-sentinel Spring Boot service
       -> docker Spring profile
-      -> PostgreSQL-backed audit store
+      -> PostgreSQL-backed operational data and audit store
   -> ra-sentinel-postgres
+      -> source-state tables for eRA/RMS/Dash/STL/TAS/S3/Keyspace/logs/health
       -> agent_audit_runs table
       -> persistent Docker volume
 ```
@@ -54,17 +55,21 @@ rental operations support. Each agent follows the same pattern:
 6. Require human approval for any action that changes system state
 ```
 
-The current implementation uses in-memory tool adapters for eRA, STL, RMS, Dash,
-TAS, S3, Keyspace, logs, and health so the flow can run locally without Hertz
-internal systems. Production integrations should replace those tool interfaces
-with real clients.
+The default Maven profile uses in-memory tool adapters so unit/integration tests
+can run without infrastructure. The Docker profile uses PostgreSQL-backed tool
+adapters, so all source data for eRA, STL, RMS, Dash, TAS, S3, Keyspace, logs,
+health, and audit history flows from the database.
 
-Audit storage depends on the runtime profile:
+Production integrations can replace the PostgreSQL seed/source tables with real
+clients for Hertz systems, or keep the same table-backed adapter pattern if an
+ops data mart is available.
 
-| Runtime | Audit Store |
+Data storage depends on the runtime profile:
+
+| Runtime | Agent source data | Audit Store |
 | --- | --- |
-| Local Maven/default profile | In-memory audit store |
-| Docker `docker` profile | PostgreSQL `agent_audit_runs` table |
+| Local Maven/default profile | In-memory seed tools | In-memory audit store |
+| Docker `docker` profile | PostgreSQL operational tables | PostgreSQL `agent_audit_runs` table |
 
 The agent does not own the legal signing transaction. It only investigates
 exceptions and recommends operational actions.
@@ -168,8 +173,39 @@ username: ra_sentinel
 password: ra_sentinel
 ```
 
+Adminer is available as a free browser UI for PostgreSQL:
+
+```text
+http://localhost:8082
+```
+
+Adminer login:
+
+```text
+System: PostgreSQL
+Server: postgres
+Username: ra_sentinel
+Password: ra_sentinel
+Database: ra_sentinel
+```
+
 The app uses the `docker` Spring profile inside Compose. In that profile, agent
-audit runs are stored in PostgreSQL using the `agent_audit_runs` table.
+source data and audit runs are stored in PostgreSQL.
+
+Important tables:
+
+```text
+era_session_status
+rms_rental_agreements
+dash_counter_states
+stl_submission_metadata
+tas_agreement_status
+s3_signed_pdf_status
+keyspace_submission_records
+correlation_events
+system_health_snapshots
+agent_audit_runs
+```
 
 Verify audit persistence:
 

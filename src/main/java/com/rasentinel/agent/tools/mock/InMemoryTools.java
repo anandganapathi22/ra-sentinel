@@ -19,9 +19,11 @@ import com.rasentinel.agent.tools.records.StlSubmissionMetadata;
 import com.rasentinel.agent.tools.records.SystemHealthSnapshot;
 import com.rasentinel.agent.tools.records.TasAgreementStatus;
 import java.util.List;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
+@Profile("!docker")
 public class InMemoryTools implements RmsTool, DashTool, StlTool, TasTool, S3DocumentTool, KeyspaceTool, CorrelationTool, EraTool, OperationalHealthTool {
     private final InMemoryRaToolData data;
 
