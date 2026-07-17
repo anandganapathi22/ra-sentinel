@@ -351,3 +351,32 @@ The agent is intentionally blocked from:
 
 Allowed actions are recommendations or approval-gated operations such as opening
 an incident, resending a link, regenerating a hash, or retrying sync.
+
+## AI Reasoning Layer
+
+Each of the 7 `ops-agents` still gathers evidence exclusively from the deterministic
+read-only tools above — the AI never queries a system directly. Once evidence is
+gathered, the agent asks Claude (`claude-opus-4-8` by default) to synthesize the
+`severity` / `rootCause` / `recommendedAction` from that evidence instead of the
+original hand-written `if/else`.
+
+Two guardrails hold regardless of what the model returns:
+
+- `allowedActions` is always intersected with a fixed, per-agent action vocabulary
+  before it reaches the report — an out-of-vocabulary or hallucinated action string
+  is silently dropped, never surfaced.
+- `blockedActions` (`MODIFY_LEGAL_TEXT`, `CHANGE_CHARGES`, `SIGN_FOR_CUSTOMER`,
+  `SUBMIT_LEGAL_AGREEMENT_AUTONOMOUSLY`) is appended by `AgentReportFactory`
+  unconditionally, the same way it was before this layer existed.
+
+Configure with:
+
+```powershell
+$env:RA_SENTINEL_AI_API_KEY = "sk-ant-..."
+```
+
+If `RA_SENTINEL_AI_API_KEY` is unset, every agent falls back to its original
+deterministic `if/else` — this is the default in local dev and in the test suite,
+so no API key is required to build or test the project. Model, effort, and timeout
+are configurable via `rasentinel.ai.model` / `rasentinel.ai.effort` /
+`rasentinel.ai.timeout-ms` in `application.yml`.

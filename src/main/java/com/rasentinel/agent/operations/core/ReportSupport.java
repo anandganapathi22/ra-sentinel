@@ -15,6 +15,12 @@ final class ReportSupport {
             "FAIL_OVER_ENDPOINT_AFTER_APPROVAL"
     );
 
+    private static final List<String> NO_OP_ACTIONS = List.of(
+            "NO_ACTION",
+            "CONTINUE_MONITORING",
+            "RUN_RA_TROUBLESHOOTING"
+    );
+
     private ReportSupport() {
     }
 
@@ -28,5 +34,24 @@ final class ReportSupport {
                         event.correlationId()
                 ))
                 .toList();
+    }
+
+    /**
+     * Never trust an AI-proposed action verbatim: only actions present in the agent's own
+     * vocabulary can be surfaced, regardless of what the model returns.
+     */
+    static List<String> clampActions(List<String> proposed, List<String> vocabulary) {
+        if (proposed == null || proposed.isEmpty()) {
+            return List.of("NO_ACTION");
+        }
+        var clamped = proposed.stream()
+                .filter(vocabulary::contains)
+                .distinct()
+                .toList();
+        return clamped.isEmpty() ? List.of("NO_ACTION") : clamped;
+    }
+
+    static boolean requiresApproval(List<String> clampedActions) {
+        return !NO_OP_ACTIONS.containsAll(clampedActions);
     }
 }
