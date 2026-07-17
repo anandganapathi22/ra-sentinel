@@ -56,7 +56,7 @@ mvn test
 Expected:
 
 ```text
-Tests run: 14, Failures: 0, Errors: 0
+Tests run: 19, Failures: 0, Errors: 0
 ```
 
 ## Run Endpoint Regression Tests

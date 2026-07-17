@@ -20,6 +20,7 @@ sequenceDiagram
     participant S3 as S3/PDF Archive
     participant Keyspace as Keyspace/Audit DB
     participant Logs as Logs/Correlation Events
+    participant AI as Claude<br/>(claude-opus-4-8)
     participant Policy as Guardrail Policy
     participant Audit as Audit Store
     participant PG as PostgreSQL<br/>source tables + agent_audit_runs
@@ -67,7 +68,15 @@ sequenceDiagram
 
     Tools-->>Agent: Evidence snapshot
     Agent->>Agent: Correlate evidence and build timeline
-    Agent->>Agent: Classify root cause
+
+    alt AI reasoning enabled and reachable
+        Agent->>AI: assess(evidence, raw context, allowed action vocabulary)
+        AI-->>Agent: severity, rootCause, recommendedAction, allowedActions
+    else AI disabled, unconfigured, or the call failed
+        Agent->>Agent: Classify root cause deterministically (fallback)
+    end
+
+    Agent->>Agent: Clamp allowedActions to this agent's fixed vocabulary
     Agent->>Policy: Apply legal and operational guardrails
     Policy-->>Agent: Allowed actions and blocked actions
     Agent->>Audit: Persist run, evidence, tool results, recommendation
@@ -118,6 +127,12 @@ The agent is blocked from:
 
 Any write operation, such as resending a signing link, retrying TAS submission,
 retrying PDF archival, or failing over an endpoint, requires human approval.
+
+The AI reasoning step never queries eRA/STL/RMS/Dash/TAS/S3/Keyspace/Logs itself —
+it only synthesizes a verdict from evidence the deterministic tools already
+gathered. Its proposed `allowedActions` are always clamped to the agent's fixed
+vocabulary before reaching the report, and `blockedActions` is appended
+unconditionally regardless of what the model proposes.
 
 ## Local Production-Like Docker Sequence
 
