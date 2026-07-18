@@ -1,6 +1,6 @@
 package com.rasentinel.agent.core;
 
-import com.rasentinel.agent.tools.records.TasAgreementStatus;
+import com.rasentinel.agent.tools.records.ContractVaultStatus;
 import java.time.Clock;
 import java.util.ArrayList;
 import org.springframework.stereotype.Component;
@@ -15,64 +15,64 @@ public class RaCompletionClassifier {
 
     public Diagnosis classify(RaSnapshot snapshot) {
         var evidence = new ArrayList<String>();
-        evidence.add("RMS status is " + snapshot.rms().status());
-        evidence.add("Dash counter state is " + snapshot.dash().state());
-        evidence.add("STL submit status is " + snapshot.stl().submitStatus());
-        evidence.add("TAS agreement state is " + snapshot.tas().state());
+        evidence.add("Fleet ledger status is " + snapshot.fleet().status());
+        evidence.add("Counter console state is " + snapshot.console().state());
+        evidence.add("Submission gateway status is " + snapshot.gateway().submitStatus());
+        evidence.add("Contract vault agreement state is " + snapshot.vault().state());
         evidence.add("S3 signed PDF present: " + snapshot.s3().present());
         evidence.add("Keyspace metadata present: " + snapshot.keyspace().present());
 
-        if (!snapshot.rms().exists()) {
+        if (!snapshot.fleet().exists()) {
             return new Diagnosis(
                     "not_found",
-                    "RA was not found in RMS",
+                    "RA was not found in the fleet ledger",
                     evidence,
-                    "Verify the RA number and open a counter support ticket if the rental exists outside RMS.",
+                    "Verify the RA number and open a counter support ticket if the rental exists outside the fleet ledger.",
                     "high"
             );
         }
 
-        if (isExpiredTasHash(snapshot.tas())) {
-            evidence.add("TAS signing hash expired at " + snapshot.tas().hashExpiresAt());
+        if (isExpiredVaultHash(snapshot.vault())) {
+            evidence.add("Contract vault signing hash expired at " + snapshot.vault().hashExpiresAt());
             return new Diagnosis(
                     "blocked",
-                    "TAS signing hash expired",
+                    "Contract vault signing hash expired",
                     evidence,
-                    "Regenerate the TAS hash and resend the signing link after human approval.",
+                    "Regenerate the contract vault hash and resend the signing link after human approval.",
                     "high"
             );
         }
 
-        if (!snapshot.stl().email().equalsIgnoreCase(snapshot.rms().customerEmail())) {
-            evidence.add("RMS customer email is " + snapshot.rms().customerEmail());
-            evidence.add("STL signing email is " + snapshot.stl().email());
+        if (!snapshot.gateway().email().equalsIgnoreCase(snapshot.fleet().customerEmail())) {
+            evidence.add("Fleet ledger customer email is " + snapshot.fleet().customerEmail());
+            evidence.add("Submission gateway signing email is " + snapshot.gateway().email());
             return new Diagnosis(
                     "blocked",
-                    "Customer email mismatch between RMS and STL",
+                    "Customer email mismatch between the fleet ledger and submission gateway",
                     evidence,
                     "Correct the email source of truth and resend the signing link after approval.",
                     "high"
             );
         }
 
-        if (!snapshot.rms().language().equalsIgnoreCase(snapshot.stl().language())) {
-            evidence.add("RMS language is " + snapshot.rms().language());
-            evidence.add("STL language is " + snapshot.stl().language());
+        if (!snapshot.fleet().language().equalsIgnoreCase(snapshot.gateway().language())) {
+            evidence.add("Fleet ledger language is " + snapshot.fleet().language());
+            evidence.add("Submission gateway language is " + snapshot.gateway().language());
             return new Diagnosis(
                     "blocked",
                     "Agreement language mismatch",
                     evidence,
-                    "Regenerate the signing package from the deterministic STL template after approval.",
+                    "Regenerate the signing package from the deterministic submission gateway template after approval.",
                     "medium"
             );
         }
 
-        if ("SIGNED".equalsIgnoreCase(snapshot.tas().state()) && !snapshot.s3().present()) {
+        if ("SIGNED".equalsIgnoreCase(snapshot.vault().state()) && !snapshot.s3().present()) {
             return new Diagnosis(
                     "incident",
                     "Signed PDF is missing from S3",
                     evidence,
-                    "Open an ops incident with TAS and STL correlation evidence; do not recreate the legal agreement manually.",
+                    "Open an ops incident with contract vault and submission gateway correlation evidence; do not recreate the legal agreement manually.",
                     "high"
             );
         }
@@ -87,22 +87,22 @@ public class RaCompletionClassifier {
             );
         }
 
-        if ("SUBMIT_FAILED".equalsIgnoreCase(snapshot.stl().submitStatus())) {
+        if ("SUBMIT_FAILED".equalsIgnoreCase(snapshot.gateway().submitStatus())) {
             return new Diagnosis(
                     "incident",
-                    "STL submit failed",
+                    "Submission gateway submit failed",
                     evidence,
-                    "Retry STL submit after approval and include correlation IDs in the incident trail.",
+                    "Retry submission gateway submit after approval and include correlation IDs in the incident trail.",
                     "high"
             );
         }
 
-        if ("SIGNED".equalsIgnoreCase(snapshot.tas().state()) && snapshot.s3().present() && snapshot.keyspace().present()) {
+        if ("SIGNED".equalsIgnoreCase(snapshot.vault().state()) && snapshot.s3().present() && snapshot.keyspace().present()) {
             return new Diagnosis(
                     "complete",
-                    "Agreement appears complete across TAS, S3, and Keyspace",
+                    "Agreement appears complete across the contract vault, S3, and Keyspace",
                     evidence,
-                    "No signing action is recommended. Ask Dash/RMS owners to investigate stale counter display if the UI still shows pending.",
+                    "No signing action is recommended. Ask counter console/fleet ledger owners to investigate stale counter display if the UI still shows pending.",
                     "medium"
             );
         }
@@ -116,7 +116,7 @@ public class RaCompletionClassifier {
         );
     }
 
-    private boolean isExpiredTasHash(TasAgreementStatus tas) {
-        return tas.hashExpiresAt() != null && tas.hashExpiresAt().isBefore(clock.instant());
+    private boolean isExpiredVaultHash(ContractVaultStatus vault) {
+        return vault.hashExpiresAt() != null && vault.hashExpiresAt().isBefore(clock.instant());
     }
 }

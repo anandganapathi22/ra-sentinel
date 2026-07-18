@@ -1,12 +1,12 @@
 package com.rasentinel.agent.core;
 
 import com.rasentinel.agent.tools.records.CorrelationEvent;
-import com.rasentinel.agent.tools.records.DashCounterState;
+import com.rasentinel.agent.tools.records.CounterConsoleState;
+import com.rasentinel.agent.tools.records.ContractVaultStatus;
+import com.rasentinel.agent.tools.records.FleetLedgerAgreement;
 import com.rasentinel.agent.tools.records.KeyspaceSubmissionRecord;
-import com.rasentinel.agent.tools.records.RmsRentalAgreement;
 import com.rasentinel.agent.tools.records.S3SignedPdfStatus;
-import com.rasentinel.agent.tools.records.StlSubmissionMetadata;
-import com.rasentinel.agent.tools.records.TasAgreementStatus;
+import com.rasentinel.agent.tools.records.SubmissionGatewayMetadata;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -20,27 +20,27 @@ class RaCompletionClassifierTest {
     private final RaCompletionClassifier classifier = new RaCompletionClassifier(CLOCK);
 
     @Test
-    void classifiesExpiredTasHashAsBlockedHumanApprovedAction() {
+    void classifiesExpiredVaultHashAsBlockedHumanApprovedAction() {
         var diagnosis = classifier.classify(snapshot(
-                rms("PENDING_SIGNATURE", "customer@example.com", "en-US"),
-                stl("SUBMITTED", "customer@example.com", "en-US"),
-                tas("WAITING_FOR_SIGNATURE", Instant.parse("2026-07-16T19:00:00Z")),
+                fleet("PENDING_SIGNATURE", "customer@example.com", "en-US"),
+                gateway("SUBMITTED", "customer@example.com", "en-US"),
+                vault("WAITING_FOR_SIGNATURE", Instant.parse("2026-07-16T19:00:00Z")),
                 s3(false),
                 keyspace(false)
         ));
 
         assertThat(diagnosis.status()).isEqualTo("blocked");
-        assertThat(diagnosis.likelyCause()).isEqualTo("TAS signing hash expired");
+        assertThat(diagnosis.likelyCause()).isEqualTo("Contract vault signing hash expired");
         assertThat(diagnosis.recommendedAction()).contains("after human approval");
-        assertThat(diagnosis.evidence()).contains("TAS signing hash expired at 2026-07-16T19:00:00Z");
+        assertThat(diagnosis.evidence()).contains("Contract vault signing hash expired at 2026-07-16T19:00:00Z");
     }
 
     @Test
     void classifiesMissingSignedPdfAsIncidentWithoutLegalRecreation() {
         var diagnosis = classifier.classify(snapshot(
-                rms("SIGNED", "customer@example.com", "en-US"),
-                stl("SUBMITTED", "customer@example.com", "en-US"),
-                tas("SIGNED", Instant.parse("2026-07-17T20:00:00Z")),
+                fleet("SIGNED", "customer@example.com", "en-US"),
+                gateway("SUBMITTED", "customer@example.com", "en-US"),
+                vault("SIGNED", Instant.parse("2026-07-17T20:00:00Z")),
                 s3(false),
                 keyspace(false)
         ));
@@ -53,45 +53,45 @@ class RaCompletionClassifierTest {
     @Test
     void classifiesEmailMismatchBeforePendingCustomerAdvice() {
         var diagnosis = classifier.classify(snapshot(
-                rms("PENDING_SIGNATURE", "right@example.com", "en-US"),
-                stl("SUBMITTED", "wrong@example.com", "en-US"),
-                tas("WAITING_FOR_SIGNATURE", Instant.parse("2026-07-17T20:00:00Z")),
+                fleet("PENDING_SIGNATURE", "right@example.com", "en-US"),
+                gateway("SUBMITTED", "wrong@example.com", "en-US"),
+                vault("WAITING_FOR_SIGNATURE", Instant.parse("2026-07-17T20:00:00Z")),
                 s3(false),
                 keyspace(false)
         ));
 
         assertThat(diagnosis.status()).isEqualTo("blocked");
-        assertThat(diagnosis.likelyCause()).isEqualTo("Customer email mismatch between RMS and STL");
+        assertThat(diagnosis.likelyCause()).isEqualTo("Customer email mismatch between the fleet ledger and submission gateway");
     }
 
     private RaSnapshot snapshot(
-            RmsRentalAgreement rms,
-            StlSubmissionMetadata stl,
-            TasAgreementStatus tas,
+            FleetLedgerAgreement fleet,
+            SubmissionGatewayMetadata gateway,
+            ContractVaultStatus vault,
             S3SignedPdfStatus s3,
             KeyspaceSubmissionRecord keyspace
     ) {
         return new RaSnapshot(
-                rms,
-                new DashCounterState("123", "WAITING_ON_CUSTOMER", "DFW"),
-                stl,
-                tas,
+                fleet,
+                new CounterConsoleState("123", "WAITING_ON_CUSTOMER", "DFW"),
+                gateway,
+                vault,
                 s3,
                 keyspace,
                 List.of(new CorrelationEvent("TEST", "corr-123", "test event", CLOCK.instant()))
         );
     }
 
-    private RmsRentalAgreement rms(String status, String email, String language) {
-        return new RmsRentalAgreement("123", true, status, email, language);
+    private FleetLedgerAgreement fleet(String status, String email, String language) {
+        return new FleetLedgerAgreement("123", true, status, email, language);
     }
 
-    private StlSubmissionMetadata stl(String status, String email, String language) {
-        return new StlSubmissionMetadata("123", status, email, language, "corr-123");
+    private SubmissionGatewayMetadata gateway(String status, String email, String language) {
+        return new SubmissionGatewayMetadata("123", status, email, language, "corr-123");
     }
 
-    private TasAgreementStatus tas(String state, Instant hashExpiresAt) {
-        return new TasAgreementStatus("123", state, "tas-123", hashExpiresAt);
+    private ContractVaultStatus vault(String state, Instant hashExpiresAt) {
+        return new ContractVaultStatus("123", state, "vault-123", hashExpiresAt);
     }
 
     private S3SignedPdfStatus s3(boolean present) {

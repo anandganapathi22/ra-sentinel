@@ -14,8 +14,9 @@ import org.springframework.stereotype.Service;
 public class EndToEndTransactionInvestigationAgent {
     private static final String AGENT_NAME = "End-to-End Transaction Investigation Agent";
     private static final String TASK_INSTRUCTION = "Build a root-cause assessment from the cross-system "
-            + "correlation timeline for this RA, calling out where in the eRA/STL/RMS/Dash/TAS/S3 chain the "
-            + "transaction broke down, if anywhere.";
+            + "correlation timeline for this RA, calling out where in the signing portal/submission "
+            + "gateway/fleet ledger/counter console/contract vault/S3 chain the transaction broke down, if "
+            + "anywhere.";
 
     private final CorrelationTool correlationTool;
     private final AgentReportFactory reports;
@@ -31,7 +32,7 @@ public class EndToEndTransactionInvestigationAgent {
     public OperationsAgentReport trace(AgentCaseRequest request) {
         var events = correlationTool.getEvents(request.raId());
         var timeline = ReportSupport.timeline(events);
-        var tasTimeout = events.stream().anyMatch(event -> event.message().toLowerCase().contains("timeout"));
+        var vaultTimeout = events.stream().anyMatch(event -> event.message().toLowerCase().contains("timeout"));
         var evidence = timeline.stream()
                 .map(event -> event.system() + ": " + event.event())
                 .toList();
@@ -39,13 +40,13 @@ public class EndToEndTransactionInvestigationAgent {
         Supplier<OperationsAgentReport> deterministic = () -> reports.report(
                 AGENT_NAME,
                 "RA " + request.raId(),
-                tasTimeout ? "High" : "Medium",
-                tasTimeout ? "Transaction reached TAS but timed out during downstream processing." : "Transaction timeline collected.",
+                vaultTimeout ? "High" : "Medium",
+                vaultTimeout ? "Transaction reached the contract vault but timed out during downstream processing." : "Transaction timeline collected.",
                 evidence,
                 timeline,
-                tasTimeout ? "Resubmit or retry TAS processing after approval." : "Review the timeline and route to the owning system.",
+                vaultTimeout ? "Resubmit or retry contract vault processing after approval." : "Review the timeline and route to the owning system.",
                 true,
-                tasTimeout ? ReportSupport.APPROVAL_GATED_OPERATIONS : List.of("OPEN_INCIDENT")
+                vaultTimeout ? ReportSupport.APPROVAL_GATED_OPERATIONS : List.of("OPEN_INCIDENT")
         );
 
         var context = Map.<String, Object>of("events", events);

@@ -45,7 +45,7 @@ class OperationsAgentAiPathTest {
                 "High",
                 "AI-synthesized root cause for RA 489965957.",
                 "AI-recommended next step.",
-                List.of("RESUBMIT_TO_TAS_AFTER_APPROVAL"),
+                List.of("RESUBMIT_TO_CONTRACT_VAULT_AFTER_APPROVAL"),
                 "high"
         )));
 
@@ -53,7 +53,7 @@ class OperationsAgentAiPathTest {
                 .andExpect(jsonPath("$.severity").value("High"))
                 .andExpect(jsonPath("$.rootCause").value("AI-synthesized root cause for RA 489965957."))
                 .andExpect(jsonPath("$.recommendedAction").value("AI-recommended next step."))
-                .andExpect(jsonPath("$.allowedActions", hasItem("RESUBMIT_TO_TAS_AFTER_APPROVAL")));
+                .andExpect(jsonPath("$.allowedActions", hasItem("RESUBMIT_TO_CONTRACT_VAULT_AFTER_APPROVAL")));
     }
 
     @Test
@@ -62,13 +62,13 @@ class OperationsAgentAiPathTest {
                 "High",
                 "AI claims signing is possible.",
                 "Sign the agreement for the customer immediately.",
-                List.of("SIGN_FOR_CUSTOMER", "RESUBMIT_TO_TAS_AFTER_APPROVAL"),
+                List.of("SIGN_FOR_CUSTOMER", "RESUBMIT_TO_CONTRACT_VAULT_AFTER_APPROVAL"),
                 "high"
         )));
 
         postCase("/api/ops-agents/ra-troubleshooting", new AgentCaseRequest("489965957", "ORD", "q"))
                 .andExpect(jsonPath("$.allowedActions", not(hasItem("SIGN_FOR_CUSTOMER"))))
-                .andExpect(jsonPath("$.allowedActions", hasItem("RESUBMIT_TO_TAS_AFTER_APPROVAL")))
+                .andExpect(jsonPath("$.allowedActions", hasItem("RESUBMIT_TO_CONTRACT_VAULT_AFTER_APPROVAL")))
                 .andExpect(jsonPath("$.blockedActions", hasItem("SIGN_FOR_CUSTOMER")))
                 .andExpect(jsonPath("$.requiresHumanApproval").value(true));
     }
@@ -80,9 +80,9 @@ class OperationsAgentAiPathTest {
         postCase("/api/ops-agents/ra-troubleshooting", new AgentCaseRequest("489965957", "ORD", "q"))
                 .andExpect(jsonPath("$.severity").value("High"))
                 .andExpect(jsonPath("$.rootCause").value(
-                        "Customer signed successfully, PDF exists in S3, STL submit succeeded, and TAS API timeout occurred."))
+                        "Customer signed successfully, PDF exists in S3, submission gateway succeeded, and contract vault API timeout occurred."))
                 .andExpect(jsonPath("$.recommendedAction").value(
-                        "Resubmit the transaction to TAS after human approval and attach the correlation timeline."));
+                        "Resubmit the transaction to the contract vault after human approval and attach the correlation timeline."));
     }
 
     private org.springframework.test.web.servlet.ResultActions postCase(String uri, AgentCaseRequest request) throws Exception {

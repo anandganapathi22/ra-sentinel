@@ -16,7 +16,7 @@ create table if not exists agent_audit_runs (
 create index if not exists idx_agent_audit_runs_ra_id on agent_audit_runs (ra_id);
 create index if not exists idx_agent_audit_runs_created_at on agent_audit_runs (created_at desc);
 
-create table if not exists rms_rental_agreements (
+create table if not exists fleet_ledger_agreements (
     ra_id varchar(64) primary key,
     exists_flag boolean not null,
     status varchar(64) not null,
@@ -24,13 +24,13 @@ create table if not exists rms_rental_agreements (
     language varchar(32) not null
 );
 
-create table if not exists dash_counter_states (
+create table if not exists counter_console_states (
     ra_id varchar(64) primary key,
     state varchar(128) not null,
     counter_location varchar(32) not null
 );
 
-create table if not exists stl_submission_metadata (
+create table if not exists submission_gateway_metadata (
     ra_id varchar(64) primary key,
     submit_status varchar(64) not null,
     email varchar(255) not null,
@@ -38,7 +38,7 @@ create table if not exists stl_submission_metadata (
     correlation_id varchar(128) not null
 );
 
-create table if not exists tas_agreement_status (
+create table if not exists contract_vault_status (
     ra_id varchar(64) primary key,
     state varchar(64) not null,
     agreement_id varchar(128) not null,
@@ -59,7 +59,7 @@ create table if not exists keyspace_submission_records (
     updated_at timestamptz
 );
 
-create table if not exists era_session_status (
+create table if not exists signing_portal_sessions (
     ra_id varchar(64) primary key,
     status varchar(64) not null,
     started_at timestamptz,
@@ -83,17 +83,17 @@ create index if not exists idx_correlation_events_ra_id on correlation_events (r
 
 create table if not exists system_health_snapshots (
     location varchar(64) primary key,
-    rms_status varchar(64) not null,
-    dash_status varchar(64) not null,
-    tas_status varchar(64) not null,
-    tas_latency_ms integer not null,
+    fleet_status varchar(64) not null,
+    console_status varchar(64) not null,
+    vault_status varchar(64) not null,
+    vault_latency_ms integer not null,
     database_status varchar(64) not null,
     queue_backlog integer not null,
     recent_http_failures_json jsonb not null,
     affected_locations_json jsonb not null
 );
 
-insert into rms_rental_agreements (ra_id, exists_flag, status, customer_email, language) values
+insert into fleet_ledger_agreements (ra_id, exists_flag, status, customer_email, language) values
     ('123', true, 'PENDING_SIGNATURE', 'customer@example.com', 'en-US'),
     ('200', true, 'SIGNED', 'signed@example.com', 'en-US'),
     ('300', true, 'SIGNED', 'metadata@example.com', 'en-US'),
@@ -108,12 +108,12 @@ on conflict (ra_id) do update set
     customer_email = excluded.customer_email,
     language = excluded.language;
 
-insert into dash_counter_states (ra_id, state, counter_location) values
+insert into counter_console_states (ra_id, state, counter_location) values
     ('123', 'WAITING_ON_CUSTOMER', 'DFW'),
     ('200', 'PENDING_BACKEND_SYNC', 'DFW'),
     ('300', 'PENDING_BACKEND_SYNC', 'DFW'),
     ('400', 'WAITING_ON_CUSTOMER', 'DFW'),
-    ('489965957', 'SIGNED_NOT_VISIBLE_IN_TAS', 'ORD'),
+    ('489965957', 'SIGNED_NOT_VISIBLE_IN_VAULT', 'ORD'),
     ('123456', 'NOT_READY', 'ORD'),
     ('777', 'CUSTOMER_ABANDONED', 'MDW'),
     ('500', 'COMPLETE', 'DFW')
@@ -121,7 +121,7 @@ on conflict (ra_id) do update set
     state = excluded.state,
     counter_location = excluded.counter_location;
 
-insert into stl_submission_metadata (ra_id, submit_status, email, language, correlation_id) values
+insert into submission_gateway_metadata (ra_id, submit_status, email, language, correlation_id) values
     ('123', 'SUBMITTED', 'customer@example.com', 'en-US', 'corr-123'),
     ('200', 'SUBMITTED', 'signed@example.com', 'en-US', 'corr-200'),
     ('300', 'SUBMITTED', 'metadata@example.com', 'en-US', 'corr-300'),
@@ -136,15 +136,15 @@ on conflict (ra_id) do update set
     language = excluded.language,
     correlation_id = excluded.correlation_id;
 
-insert into tas_agreement_status (ra_id, state, agreement_id, hash_expires_at) values
-    ('123', 'WAITING_FOR_SIGNATURE', 'tas-123', now() - interval '2 hours'),
-    ('200', 'SIGNED', 'tas-200', now() + interval '12 hours'),
-    ('300', 'SIGNED', 'tas-300', now() + interval '12 hours'),
-    ('400', 'WAITING_FOR_SIGNATURE', 'tas-400', now() + interval '12 hours'),
-    ('489965957', 'API_TIMEOUT', 'tas-489965957', now() + interval '12 hours'),
+insert into contract_vault_status (ra_id, state, agreement_id, hash_expires_at) values
+    ('123', 'WAITING_FOR_SIGNATURE', 'vault-123', now() - interval '2 hours'),
+    ('200', 'SIGNED', 'vault-200', now() + interval '12 hours'),
+    ('300', 'SIGNED', 'vault-300', now() + interval '12 hours'),
+    ('400', 'WAITING_FOR_SIGNATURE', 'vault-400', now() + interval '12 hours'),
+    ('489965957', 'API_TIMEOUT', 'vault-489965957', now() + interval '12 hours'),
     ('123456', 'NOT_CREATED', '', null),
-    ('777', 'WAITING_FOR_SIGNATURE', 'tas-777', now() + interval '4 hours'),
-    ('500', 'SIGNED', 'tas-500', now() + interval '12 hours')
+    ('777', 'WAITING_FOR_SIGNATURE', 'vault-777', now() + interval '4 hours'),
+    ('500', 'SIGNED', 'vault-500', now() + interval '12 hours')
 on conflict (ra_id) do update set
     state = excluded.state,
     agreement_id = excluded.agreement_id,
@@ -178,7 +178,7 @@ on conflict (ra_id) do update set
     status = excluded.status,
     updated_at = excluded.updated_at;
 
-insert into era_session_status (ra_id, status, started_at, last_activity_at, last_step, license_scan_present, customer_eligible) values
+insert into signing_portal_sessions (ra_id, status, started_at, last_activity_at, last_step, license_scan_present, customer_eligible) values
     ('123', 'UNKNOWN', null, null, 'UNKNOWN', false, false),
     ('200', 'UNKNOWN', null, null, 'UNKNOWN', false, false),
     ('300', 'UNKNOWN', null, null, 'UNKNOWN', false, false),
@@ -196,39 +196,39 @@ on conflict (ra_id) do update set
     customer_eligible = excluded.customer_eligible;
 
 insert into correlation_events (ra_id, source, correlation_id, message, occurred_at) values
-    ('489965957', 'eRA', 'corr-489965957', 'Customer opened agreement', now() - interval '9 minutes'),
-    ('489965957', 'eRA', 'corr-489965957', 'Customer signed agreement', now() - interval '7 minutes'),
-    ('489965957', 'STL', 'corr-489965957', 'STL submit success', now() - interval '7 minutes'),
-    ('489965957', 'RMS', 'corr-489965957', 'RMS signed status persisted', now() - interval '6 minutes'),
-    ('489965957', 'TAS', 'corr-489965957', 'TAS API timeout', now() - interval '5 minutes'),
-    ('489965957', 'TAS', 'corr-489965957', 'Retry failed with timeout', now() - interval '3 minutes'),
-    ('123', 'STL', 'corr-123', 'Submission metadata retrieved', now() - interval '30 minutes'),
-    ('123', 'TAS', 'corr-123', 'Agreement status retrieved', now() - interval '20 minutes'),
-    ('200', 'STL', 'corr-200', 'Submission metadata retrieved', now() - interval '30 minutes'),
-    ('200', 'TAS', 'corr-200', 'Agreement status retrieved', now() - interval '20 minutes'),
-    ('300', 'STL', 'corr-300', 'Submission metadata retrieved', now() - interval '30 minutes'),
-    ('300', 'TAS', 'corr-300', 'Agreement status retrieved', now() - interval '20 minutes')
+    ('489965957', 'SigningPortal', 'corr-489965957', 'Customer opened agreement', now() - interval '9 minutes'),
+    ('489965957', 'SigningPortal', 'corr-489965957', 'Customer signed agreement', now() - interval '7 minutes'),
+    ('489965957', 'SubmissionGateway', 'corr-489965957', 'Submission gateway submit success', now() - interval '7 minutes'),
+    ('489965957', 'FleetLedger', 'corr-489965957', 'Fleet ledger signed status persisted', now() - interval '6 minutes'),
+    ('489965957', 'ContractVault', 'corr-489965957', 'Contract vault API timeout', now() - interval '5 minutes'),
+    ('489965957', 'ContractVault', 'corr-489965957', 'Retry failed with timeout', now() - interval '3 minutes'),
+    ('123', 'SubmissionGateway', 'corr-123', 'Submission metadata retrieved', now() - interval '30 minutes'),
+    ('123', 'ContractVault', 'corr-123', 'Agreement status retrieved', now() - interval '20 minutes'),
+    ('200', 'SubmissionGateway', 'corr-200', 'Submission metadata retrieved', now() - interval '30 minutes'),
+    ('200', 'ContractVault', 'corr-200', 'Agreement status retrieved', now() - interval '20 minutes'),
+    ('300', 'SubmissionGateway', 'corr-300', 'Submission metadata retrieved', now() - interval '30 minutes'),
+    ('300', 'ContractVault', 'corr-300', 'Agreement status retrieved', now() - interval '20 minutes')
 on conflict (ra_id, source, correlation_id, message, occurred_at) do nothing;
 
 insert into system_health_snapshots (
     location,
-    rms_status,
-    dash_status,
-    tas_status,
-    tas_latency_ms,
+    fleet_status,
+    console_status,
+    vault_status,
+    vault_latency_ms,
     database_status,
     queue_backlog,
     recent_http_failures_json,
     affected_locations_json
 ) values
-    ('CHICAGO', 'UNAVAILABLE', 'DEGRADED', 'SLOW', 6200, 'OK', 284, '{"RMS_503":147,"TAS_TIMEOUT":21}'::jsonb, '["ORD","MDW"]'::jsonb),
-    ('ORD', 'UNAVAILABLE', 'DEGRADED', 'SLOW', 6200, 'OK', 284, '{"RMS_503":147,"TAS_TIMEOUT":21}'::jsonb, '["ORD","MDW"]'::jsonb),
+    ('CHICAGO', 'UNAVAILABLE', 'DEGRADED', 'SLOW', 6200, 'OK', 284, '{"FLEET_503":147,"VAULT_TIMEOUT":21}'::jsonb, '["ORD","MDW"]'::jsonb),
+    ('ORD', 'UNAVAILABLE', 'DEGRADED', 'SLOW', 6200, 'OK', 284, '{"FLEET_503":147,"VAULT_TIMEOUT":21}'::jsonb, '["ORD","MDW"]'::jsonb),
     ('GLOBAL', 'OK', 'OK', 'OK', 800, 'OK', 12, '{}'::jsonb, '[]'::jsonb)
 on conflict (location) do update set
-    rms_status = excluded.rms_status,
-    dash_status = excluded.dash_status,
-    tas_status = excluded.tas_status,
-    tas_latency_ms = excluded.tas_latency_ms,
+    fleet_status = excluded.fleet_status,
+    console_status = excluded.console_status,
+    vault_status = excluded.vault_status,
+    vault_latency_ms = excluded.vault_latency_ms,
     database_status = excluded.database_status,
     queue_backlog = excluded.queue_backlog,
     recent_http_failures_json = excluded.recent_http_failures_json,

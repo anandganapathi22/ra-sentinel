@@ -1,6 +1,6 @@
 package com.rasentinel.agent.tools.records;
 
-public record DashCounterState(
+public record CounterConsoleState(
         String raId,
         String state,
         String counterLocation

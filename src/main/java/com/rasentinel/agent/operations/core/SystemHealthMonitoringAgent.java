@@ -13,9 +13,9 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class SystemHealthMonitoringAgent {
-    private static final String AGENT_NAME = "TAS/RMS Health Monitoring Agent";
-    private static final String TASK_INSTRUCTION = "Assess whether current TAS latency and queue backlog indicate "
-            + "counter delays are likely for this location, and recommend a mitigation if so.";
+    private static final String AGENT_NAME = "Contract Vault/Fleet Ledger Health Monitoring Agent";
+    private static final String TASK_INSTRUCTION = "Assess whether current contract vault latency and queue "
+            + "backlog indicate counter delays are likely for this location, and recommend a mitigation if so.";
     private static final List<String> VOCABULARY = List.of(
             "ALERT_OPERATIONS", "FAIL_OVER_ENDPOINT_AFTER_APPROVAL", "CONTINUE_MONITORING");
 
@@ -33,14 +33,14 @@ public class SystemHealthMonitoringAgent {
         var location = request.location() == null || request.location().isBlank() ? "GLOBAL" : request.location();
         var health = healthTool.getHealth(location);
         var evidence = new ArrayList<String>();
-        evidence.add("RMS status is " + health.rmsStatus());
-        evidence.add("Dash status is " + health.dashStatus());
-        evidence.add("TAS status is " + health.tasStatus());
-        evidence.add("TAS latency is " + health.tasLatencyMs() + "ms");
+        evidence.add("Fleet ledger status is " + health.fleetStatus());
+        evidence.add("Counter console status is " + health.consoleStatus());
+        evidence.add("Contract vault status is " + health.vaultStatus());
+        evidence.add("Contract vault latency is " + health.vaultLatencyMs() + "ms");
         evidence.add("Queue backlog is " + health.queueBacklog());
 
         Supplier<OperationsAgentReport> deterministic = () -> {
-            if (health.tasLatencyMs() > 5000 || health.queueBacklog() > 200) {
+            if (health.vaultLatencyMs() > 5000 || health.queueBacklog() > 200) {
                 return reports.report(
                         AGENT_NAME,
                         location,
@@ -58,7 +58,7 @@ public class SystemHealthMonitoringAgent {
                     AGENT_NAME,
                     location,
                     "Normal",
-                    "RMS, Dash, TAS, database, and queue health are within expected thresholds.",
+                    "Fleet ledger, counter console, contract vault, database, and queue health are within expected thresholds.",
                     evidence,
                     List.of(),
                     "Continue scheduled monitoring.",

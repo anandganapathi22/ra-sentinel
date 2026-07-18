@@ -44,10 +44,10 @@ try {
 
 $cases = @(
     @{
-        Name = "TC-01 TAS timeout"
+        Name = "TC-01 Contract vault timeout"
         Path = "/api/ops-agents/ra-troubleshooting"
-        Body = @{ raId = "489965957"; location = "ORD"; question = "Customer completed eRA but agreement is not visible in TAS." }
-        Expected = "Customer signed successfully, PDF exists in S3, STL submit succeeded, and TAS API timeout occurred."
+        Body = @{ raId = "489965957"; location = "ORD"; question = "Customer completed signing but agreement is not visible in the contract vault." }
+        Expected = "Customer signed successfully, PDF exists in S3, submission gateway succeeded, and contract vault API timeout occurred."
     },
     @{
         Name = "TC-02 PDF missing"
@@ -70,8 +70,8 @@ $cases = @(
     @{
         Name = "TC-05 Abandoned signing"
         Path = "/api/ops-agents/completion-recovery"
-        Body = @{ raId = "777"; location = "MDW"; question = "Customer started eRA but never completed signing." }
-        Expected = "Customer abandoned eRA at SIGNATURE step."
+        Body = @{ raId = "777"; location = "MDW"; question = "Customer started signing but never completed it." }
+        Expected = "Customer abandoned the signing portal at SIGNATURE step."
     },
     @{
         Name = "TC-06 Missing license"
@@ -83,7 +83,7 @@ $cases = @(
         Name = "TC-07 Chicago incident"
         Path = "/api/ops-agents/incident-management"
         Body = @{ raId = "489965957"; location = "Chicago"; question = "Chicago location is unable to retrieve agreements." }
-        Expected = "RMS endpoint unavailable."
+        Expected = "Fleet ledger endpoint unavailable."
     },
     @{
         Name = "TC-08 Health warning"
@@ -95,7 +95,7 @@ $cases = @(
         Name = "TC-09 Timeline"
         Path = "/api/ops-agents/transaction-investigation"
         Body = @{ raId = "489965957"; location = "ORD"; question = "Trace transaction." }
-        Expected = "Transaction reached TAS but timed out during downstream processing."
+        Expected = "Transaction reached the contract vault but timed out during downstream processing."
     }
 )
 
@@ -127,7 +127,7 @@ try {
         -Method Post `
         -Uri "$BaseUrl/api/agent/ra-completion" `
         -ContentType "application/json" `
-        -Body '{"raId":"123","question":"Why cannot this customer finish eRA?"}'
+        -Body '{"raId":"123","question":"Why cannot this customer finish signing?"}'
     $audit = Invoke-RestMethod "$BaseUrl/api/agent/audit"
     $actual = if ($audit[0].runId -eq $auditRun.runId) { "Persisted" } else { "Not latest audit run" }
     Add-Result "TC-11 Audit API persistence" "Persisted" $actual

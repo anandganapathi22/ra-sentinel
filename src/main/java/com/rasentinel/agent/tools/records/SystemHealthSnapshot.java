@@ -5,10 +5,10 @@ import java.util.Map;
 
 public record SystemHealthSnapshot(
         String location,
-        String rmsStatus,
-        String dashStatus,
-        String tasStatus,
-        int tasLatencyMs,
+        String fleetStatus,
+        String consoleStatus,
+        String vaultStatus,
+        int vaultLatencyMs,
         String databaseStatus,
         int queueBacklog,
         Map<String, Integer> recentHttpFailures,

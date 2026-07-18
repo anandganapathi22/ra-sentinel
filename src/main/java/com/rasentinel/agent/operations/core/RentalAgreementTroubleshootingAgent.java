@@ -5,13 +5,13 @@ import com.rasentinel.agent.ai.AiReasoningClient;
 import com.rasentinel.agent.operations.api.AgentCaseRequest;
 import com.rasentinel.agent.operations.api.OperationsAgentReport;
 import com.rasentinel.agent.tools.CorrelationTool;
-import com.rasentinel.agent.tools.DashTool;
-import com.rasentinel.agent.tools.EraTool;
+import com.rasentinel.agent.tools.CounterConsoleTool;
+import com.rasentinel.agent.tools.ContractVaultTool;
+import com.rasentinel.agent.tools.FleetLedgerTool;
 import com.rasentinel.agent.tools.KeyspaceTool;
-import com.rasentinel.agent.tools.RmsTool;
 import com.rasentinel.agent.tools.S3DocumentTool;
-import com.rasentinel.agent.tools.StlTool;
-import com.rasentinel.agent.tools.TasTool;
+import com.rasentinel.agent.tools.SigningPortalTool;
+import com.rasentinel.agent.tools.SubmissionGatewayTool;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -21,14 +21,15 @@ import org.springframework.stereotype.Service;
 public class RentalAgreementTroubleshootingAgent {
     private static final String AGENT_NAME = "Rental Agreement Troubleshooting Agent";
     private static final String TASK_INSTRUCTION = "Determine whether the customer's rental agreement completed "
-            + "successfully end to end across eRA, RMS, Dash, STL, TAS, S3, and Keyspace, and if not, identify the "
-            + "single system where the transaction broke down.";
+            + "successfully end to end across the signing portal, fleet ledger, counter console, submission "
+            + "gateway, contract vault, S3, and Keyspace, and if not, identify the single system where the "
+            + "transaction broke down.";
 
-    private final EraTool eraTool;
-    private final RmsTool rmsTool;
-    private final DashTool dashTool;
-    private final StlTool stlTool;
-    private final TasTool tasTool;
+    private final SigningPortalTool signingPortalTool;
+    private final FleetLedgerTool fleetLedgerTool;
+    private final CounterConsoleTool counterConsoleTool;
+    private final SubmissionGatewayTool submissionGatewayTool;
+    private final ContractVaultTool contractVaultTool;
     private final S3DocumentTool s3DocumentTool;
     private final KeyspaceTool keyspaceTool;
     private final CorrelationTool correlationTool;
@@ -36,22 +37,22 @@ public class RentalAgreementTroubleshootingAgent {
     private final AiReasoningClient aiReasoningClient;
 
     public RentalAgreementTroubleshootingAgent(
-            EraTool eraTool,
-            RmsTool rmsTool,
-            DashTool dashTool,
-            StlTool stlTool,
-            TasTool tasTool,
+            SigningPortalTool signingPortalTool,
+            FleetLedgerTool fleetLedgerTool,
+            CounterConsoleTool counterConsoleTool,
+            SubmissionGatewayTool submissionGatewayTool,
+            ContractVaultTool contractVaultTool,
             S3DocumentTool s3DocumentTool,
             KeyspaceTool keyspaceTool,
             CorrelationTool correlationTool,
             AgentReportFactory reports,
             AiReasoningClient aiReasoningClient
     ) {
-        this.eraTool = eraTool;
-        this.rmsTool = rmsTool;
-        this.dashTool = dashTool;
-        this.stlTool = stlTool;
-        this.tasTool = tasTool;
+        this.signingPortalTool = signingPortalTool;
+        this.fleetLedgerTool = fleetLedgerTool;
+        this.counterConsoleTool = counterConsoleTool;
+        this.submissionGatewayTool = submissionGatewayTool;
+        this.contractVaultTool = contractVaultTool;
         this.s3DocumentTool = s3DocumentTool;
         this.keyspaceTool = keyspaceTool;
         this.correlationTool = correlationTool;
@@ -61,38 +62,38 @@ public class RentalAgreementTroubleshootingAgent {
 
     public OperationsAgentReport investigate(AgentCaseRequest request) {
         var raId = request.raId().trim();
-        var era = eraTool.getSessionStatus(raId);
-        var rms = rmsTool.getRentalAgreement(raId);
-        var dash = dashTool.getCounterState(raId);
-        var stl = stlTool.getSubmissionMetadata(raId);
-        var tas = tasTool.getAgreementStatus(raId);
+        var portal = signingPortalTool.getSessionStatus(raId);
+        var fleet = fleetLedgerTool.getRentalAgreement(raId);
+        var console = counterConsoleTool.getCounterState(raId);
+        var gateway = submissionGatewayTool.getSubmissionMetadata(raId);
+        var vault = contractVaultTool.getAgreementStatus(raId);
         var s3 = s3DocumentTool.getSignedPdfStatus(raId);
         var keyspace = keyspaceTool.getSubmissionRecord(raId);
         var events = correlationTool.getEvents(raId);
         var timeline = ReportSupport.timeline(events);
 
         var evidence = new ArrayList<String>();
-        evidence.add("eRA status is " + era.status() + " at step " + era.lastStep());
-        evidence.add("RMS status is " + rms.status());
-        evidence.add("Dash state is " + dash.state());
-        evidence.add("STL submit status is " + stl.submitStatus() + " with correlation ID " + stl.correlationId());
-        evidence.add("TAS state is " + tas.state());
+        evidence.add("Signing portal status is " + portal.status() + " at step " + portal.lastStep());
+        evidence.add("Fleet ledger status is " + fleet.status());
+        evidence.add("Counter console state is " + console.state());
+        evidence.add("Submission gateway status is " + gateway.submitStatus() + " with correlation ID " + gateway.correlationId());
+        evidence.add("Contract vault state is " + vault.state());
         evidence.add("S3 PDF present: " + s3.present());
         evidence.add("Keyspace record present: " + keyspace.present());
 
         Supplier<OperationsAgentReport> deterministic = () -> {
-            if ("SIGNED".equalsIgnoreCase(era.status())
+            if ("SIGNED".equalsIgnoreCase(portal.status())
                     && s3.present()
-                    && "SUBMITTED".equalsIgnoreCase(stl.submitStatus())
-                    && "API_TIMEOUT".equalsIgnoreCase(tas.state())) {
+                    && "SUBMITTED".equalsIgnoreCase(gateway.submitStatus())
+                    && "API_TIMEOUT".equalsIgnoreCase(vault.state())) {
                 return reports.report(
                         AGENT_NAME,
                         "RA " + raId,
                         "High",
-                        "Customer signed successfully, PDF exists in S3, STL submit succeeded, and TAS API timeout occurred.",
+                        "Customer signed successfully, PDF exists in S3, submission gateway succeeded, and contract vault API timeout occurred.",
                         evidence,
                         timeline,
-                        "Resubmit the transaction to TAS after human approval and attach the correlation timeline.",
+                        "Resubmit the transaction to the contract vault after human approval and attach the correlation timeline.",
                         true,
                         ReportSupport.APPROVAL_GATED_OPERATIONS
                 );
@@ -112,7 +113,8 @@ public class RentalAgreementTroubleshootingAgent {
         };
 
         var vocabulary = ReportSupport.APPROVAL_GATED_OPERATIONS;
-        var context = Map.<String, Object>of("era", era, "rms", rms, "dash", dash, "stl", stl, "tas", tas, "s3", s3, "keyspace", keyspace);
+        var context = Map.<String, Object>of(
+                "portal", portal, "fleet", fleet, "console", console, "gateway", gateway, "vault", vault, "s3", s3, "keyspace", keyspace);
         var aiRequest = new AiAssessmentRequest(AGENT_NAME, "RA " + raId, TASK_INSTRUCTION, evidence, context, vocabulary);
 
         return aiReasoningClient.assess(aiRequest)

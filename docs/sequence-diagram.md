@@ -7,16 +7,16 @@ It does not alter legal text, charges, signatures, or final agreement state.
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Counter as Counter/Dash User
+    actor Counter as Counter/Console User
     participant API as RA Sentinel API
     participant Router as Agent Router
     participant Agent as Selected Ops Agent
     participant Tools as Tool Interfaces
-    participant ERA as eRA
-    participant STL as STL
-    participant RMS as RMS
-    participant Dash as Dash
-    participant TAS as TAS
+    participant Portal as Signing Portal
+    participant Gateway as Submission Gateway
+    participant Fleet as Fleet Ledger
+    participant Console as Counter Console
+    participant Vault as Contract Vault
     participant S3 as S3/PDF Archive
     participant Keyspace as Keyspace/Audit DB
     participant Logs as Logs/Correlation Events
@@ -32,26 +32,26 @@ sequenceDiagram
     Router->>Agent: Start investigation
 
     Agent->>Tools: Read-only evidence collection
-    par Query eRA
-        Tools->>PG: select era_session_status
-        Tools->>ERA: getSessionStatus(raId)
-        ERA-->>Tools: eRA status, last step, activity
-    and Query STL
-        Tools->>PG: select stl_submission_metadata
-        Tools->>STL: getSubmissionMetadata(raId)
-        STL-->>Tools: submit status, email, language, correlation ID
-    and Query RMS
-        Tools->>PG: select rms_rental_agreements
-        Tools->>RMS: getRentalAgreement(raId)
-        RMS-->>Tools: RA status, customer data
-    and Query Dash
-        Tools->>PG: select dash_counter_states
-        Tools->>Dash: getCounterState(raId)
-        Dash-->>Tools: counter workflow state
-    and Query TAS
-        Tools->>PG: select tas_agreement_status
-        Tools->>TAS: getAgreementStatus(raId)
-        TAS-->>Tools: agreement state, hash, agreement ID
+    par Query Signing Portal
+        Tools->>PG: select signing_portal_sessions
+        Tools->>Portal: getSessionStatus(raId)
+        Portal-->>Tools: signing portal status, last step, activity
+    and Query Submission Gateway
+        Tools->>PG: select submission_gateway_metadata
+        Tools->>Gateway: getSubmissionMetadata(raId)
+        Gateway-->>Tools: submit status, email, language, correlation ID
+    and Query Fleet Ledger
+        Tools->>PG: select fleet_ledger_agreements
+        Tools->>Fleet: getRentalAgreement(raId)
+        Fleet-->>Tools: RA status, customer data
+    and Query Counter Console
+        Tools->>PG: select counter_console_states
+        Tools->>Console: getCounterState(raId)
+        Console-->>Tools: counter workflow state
+    and Query Contract Vault
+        Tools->>PG: select contract_vault_status
+        Tools->>Vault: getAgreementStatus(raId)
+        Vault-->>Tools: agreement state, hash, agreement ID
     and Query S3
         Tools->>PG: select s3_signed_pdf_status
         Tools->>S3: getSignedPdfStatus(raId)
@@ -91,9 +91,9 @@ sequenceDiagram
     alt Happy path complete
         Agent-->>API: Report complete/no action
         API-->>Counter: Agreement appears complete across systems
-    else TAS timeout after successful signing
-        Agent-->>API: Root cause: TAS API timeout
-        API-->>Counter: Recommend TAS resubmit after approval
+    else Contract vault timeout after successful signing
+        Agent-->>API: Root cause: contract vault API timeout
+        API-->>Counter: Recommend contract vault resubmit after approval
         Counter->>Human: Request approval
         Human-->>Counter: Approve retry
         Counter->>Ticket: Open incident with evidence/timeline
@@ -102,7 +102,7 @@ sequenceDiagram
         API-->>Counter: Recommend audit ticket and PDF archive retry after approval
         Counter->>Human: Request approval
         Human-->>Counter: Approve archive retry
-        Counter->>Ticket: Open audit/ops ticket with TAS/STL/S3 evidence
+        Counter->>Ticket: Open audit/ops ticket with contract vault/submission gateway/S3 evidence
     else Customer abandoned signing
         Agent-->>API: Root cause: customer abandoned at signing step
         API-->>Counter: Recommend resend/regenerate link after approval
@@ -110,7 +110,7 @@ sequenceDiagram
         Agent-->>API: Root cause: missing prerequisite, e.g. license scan
         API-->>Counter: Recommend counter action, e.g. rescan license
     else Platform incident
-        Agent-->>API: Root cause: RMS/TAS/Dash health issue
+        Agent-->>API: Root cause: fleet ledger/contract vault/counter console health issue
         API-->>Counter: Severity, affected locations, suggested runbook action
         Counter->>Ticket: Open incident
     end
@@ -125,10 +125,12 @@ The agent is blocked from:
 - signing for the customer
 - submitting a legal agreement autonomously
 
-Any write operation, such as resending a signing link, retrying TAS submission,
-retrying PDF archival, or failing over an endpoint, requires human approval.
+Any write operation, such as resending a signing link, retrying contract vault
+submission, retrying PDF archival, or failing over an endpoint, requires human
+approval.
 
-The AI reasoning step never queries eRA/STL/RMS/Dash/TAS/S3/Keyspace/Logs itself —
+The AI reasoning step never queries the signing portal, submission gateway,
+fleet ledger, counter console, contract vault, S3, Keyspace, or Logs itself —
 it only synthesizes a verdict from evidence the deterministic tools already
 gathered. Its proposed `allowedActions` are always clamped to the agent's fixed
 vocabulary before reaching the report, and `blockedActions` is appended
@@ -162,7 +164,7 @@ sequenceDiagram
     Dev->>API: POST /api/agent/ra-completion
     API->>Tools: Load RA source state
     Tools->>PG: select source tables
-    PG-->>Tools: eRA/RMS/Dash/STL/TAS/S3/Keyspace/log data
+    PG-->>Tools: signing portal/fleet ledger/counter console/submission gateway/contract vault/S3/Keyspace/log data
     API->>Audit: Save diagnostic run
     Audit->>PG: insert into agent_audit_runs
     PG-->>Audit: saved

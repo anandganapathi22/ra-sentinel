@@ -1,6 +1,6 @@
 package com.rasentinel.agent.tools.records;
 
-public record StlSubmissionMetadata(
+public record SubmissionGatewayMetadata(
         String raId,
         String submitStatus,
         String email,

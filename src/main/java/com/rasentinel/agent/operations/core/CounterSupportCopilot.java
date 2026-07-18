@@ -4,10 +4,10 @@ import com.rasentinel.agent.ai.AiAssessmentRequest;
 import com.rasentinel.agent.ai.AiReasoningClient;
 import com.rasentinel.agent.operations.api.AgentCaseRequest;
 import com.rasentinel.agent.operations.api.OperationsAgentReport;
-import com.rasentinel.agent.tools.DashTool;
-import com.rasentinel.agent.tools.EraTool;
-import com.rasentinel.agent.tools.RmsTool;
-import com.rasentinel.agent.tools.TasTool;
+import com.rasentinel.agent.tools.CounterConsoleTool;
+import com.rasentinel.agent.tools.ContractVaultTool;
+import com.rasentinel.agent.tools.FleetLedgerTool;
+import com.rasentinel.agent.tools.SigningPortalTool;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -18,47 +18,48 @@ import org.springframework.stereotype.Service;
 public class CounterSupportCopilot {
     private static final String AGENT_NAME = "Counter Support Copilot";
     private static final String TASK_INSTRUCTION = "Answer the counter agent's question about why this RA is not "
-            + "ready, based on eRA/RMS/Dash/TAS state, and point them at the missing prerequisite if any.";
+            + "ready, based on signing portal/fleet ledger/counter console/contract vault state, and point them "
+            + "at the missing prerequisite if any.";
     private static final List<String> VOCABULARY = List.of("RESCAN_LICENSE", "RUN_RA_TROUBLESHOOTING");
 
-    private final EraTool eraTool;
-    private final RmsTool rmsTool;
-    private final DashTool dashTool;
-    private final TasTool tasTool;
+    private final SigningPortalTool signingPortalTool;
+    private final FleetLedgerTool fleetLedgerTool;
+    private final CounterConsoleTool counterConsoleTool;
+    private final ContractVaultTool contractVaultTool;
     private final AgentReportFactory reports;
     private final AiReasoningClient aiReasoningClient;
 
     public CounterSupportCopilot(
-            EraTool eraTool,
-            RmsTool rmsTool,
-            DashTool dashTool,
-            TasTool tasTool,
+            SigningPortalTool signingPortalTool,
+            FleetLedgerTool fleetLedgerTool,
+            CounterConsoleTool counterConsoleTool,
+            ContractVaultTool contractVaultTool,
             AgentReportFactory reports,
             AiReasoningClient aiReasoningClient
     ) {
-        this.eraTool = eraTool;
-        this.rmsTool = rmsTool;
-        this.dashTool = dashTool;
-        this.tasTool = tasTool;
+        this.signingPortalTool = signingPortalTool;
+        this.fleetLedgerTool = fleetLedgerTool;
+        this.counterConsoleTool = counterConsoleTool;
+        this.contractVaultTool = contractVaultTool;
         this.reports = reports;
         this.aiReasoningClient = aiReasoningClient;
     }
 
     public OperationsAgentReport answer(AgentCaseRequest request) {
-        var era = eraTool.getSessionStatus(request.raId());
-        var rms = rmsTool.getRentalAgreement(request.raId());
-        var dash = dashTool.getCounterState(request.raId());
-        var tas = tasTool.getAgreementStatus(request.raId());
+        var portal = signingPortalTool.getSessionStatus(request.raId());
+        var fleet = fleetLedgerTool.getRentalAgreement(request.raId());
+        var console = counterConsoleTool.getCounterState(request.raId());
+        var vault = contractVaultTool.getAgreementStatus(request.raId());
         var evidence = new ArrayList<String>();
-        evidence.add("eRA last step is " + era.lastStep());
-        evidence.add("License scan present: " + era.licenseScanPresent());
-        evidence.add("Customer eligible: " + era.customerEligible());
-        evidence.add("RMS status is " + rms.status());
-        evidence.add("Dash state is " + dash.state());
-        evidence.add("TAS state is " + tas.state());
+        evidence.add("Signing portal last step is " + portal.lastStep());
+        evidence.add("License scan present: " + portal.licenseScanPresent());
+        evidence.add("Customer eligible: " + portal.customerEligible());
+        evidence.add("Fleet ledger status is " + fleet.status());
+        evidence.add("Counter console state is " + console.state());
+        evidence.add("Contract vault state is " + vault.state());
 
         Supplier<OperationsAgentReport> deterministic = () -> {
-            if (!era.licenseScanPresent()) {
+            if (!portal.licenseScanPresent()) {
                 return reports.report(
                         AGENT_NAME,
                         "RA " + request.raId(),
@@ -85,7 +86,7 @@ public class CounterSupportCopilot {
             );
         };
 
-        var context = Map.<String, Object>of("era", era, "rms", rms, "dash", dash, "tas", tas);
+        var context = Map.<String, Object>of("portal", portal, "fleet", fleet, "console", console, "vault", vault);
         var aiRequest = new AiAssessmentRequest(
                 AGENT_NAME, "RA " + request.raId(), TASK_INSTRUCTION, evidence, context, VOCABULARY);
 

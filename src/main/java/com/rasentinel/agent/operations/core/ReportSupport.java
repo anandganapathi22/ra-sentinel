@@ -8,7 +8,7 @@ import java.util.List;
 final class ReportSupport {
     static final List<String> APPROVAL_GATED_OPERATIONS = List.of(
             "OPEN_INCIDENT",
-            "RESUBMIT_TO_TAS_AFTER_APPROVAL",
+            "RESUBMIT_TO_CONTRACT_VAULT_AFTER_APPROVAL",
             "RESEND_LINK_AFTER_APPROVAL",
             "REGENERATE_LINK_AFTER_APPROVAL",
             "RETRY_SYNC_AFTER_APPROVAL",

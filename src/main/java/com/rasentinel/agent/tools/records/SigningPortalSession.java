@@ -2,7 +2,7 @@ package com.rasentinel.agent.tools.records;
 
 import java.time.Instant;
 
-public record EraSessionStatus(
+public record SigningPortalSession(
         String raId,
         String status,
         Instant startedAt,

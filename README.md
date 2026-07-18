@@ -9,18 +9,18 @@ without changing contract text, charges, signatures, or final submission state.
 The signing path remains deterministic:
 
 ```text
-eRA -> STL -> RMS/Dash -> TAS -> S3/Keyspace
+Signing Portal -> Submission Gateway -> Fleet Ledger/Counter Console -> Contract Vault -> S3/Keyspace
 ```
 
 Agents operate around that path:
 
 ```text
-Counter/Dash user
+Counter/Console user
   -> RA Sentinel Agent API
-      -> RMS lookup
-      -> Dash state lookup
-      -> STL metadata lookup
-      -> TAS agreement/hash lookup
+      -> Fleet ledger lookup
+      -> Counter console state lookup
+      -> Submission gateway metadata lookup
+      -> Contract vault agreement/hash lookup
       -> S3 signed PDF check
       -> Keyspace metadata check
       -> Correlation event lookup
@@ -36,7 +36,8 @@ Docker Compose
       -> docker Spring profile
       -> PostgreSQL-backed operational data and audit store
   -> ra-sentinel-postgres
-      -> source-state tables for eRA/RMS/Dash/STL/TAS/S3/Keyspace/logs/health
+      -> source-state tables for the signing portal/fleet ledger/counter
+         console/submission gateway/contract vault/S3/Keyspace/logs/health
       -> agent_audit_runs table
       -> persistent Docker volume
 ```
@@ -48,7 +49,8 @@ rental operations support. Each agent follows the same pattern:
 
 ```text
 1. Accept an RA/location/question
-2. Query read-only tools for eRA, STL, RMS, Dash, TAS, S3, Keyspace, logs, and health
+2. Query read-only tools for the signing portal, submission gateway, fleet
+   ledger, counter console, contract vault, S3, Keyspace, logs, and health
 3. Correlate the system evidence
 4. Classify the likely root cause
 5. Return a structured report with evidence, timeline, recommended action, and guardrails
@@ -57,8 +59,9 @@ rental operations support. Each agent follows the same pattern:
 
 The default Maven profile uses in-memory tool adapters so unit/integration tests
 can run without infrastructure. The Docker profile uses PostgreSQL-backed tool
-adapters, so all source data for eRA, STL, RMS, Dash, TAS, S3, Keyspace, logs,
-health, and audit history flows from the database.
+adapters, so all source data for the signing portal, submission gateway, fleet
+ledger, counter console, contract vault, S3, Keyspace, logs, health, and audit
+history flows from the database.
 
 Production integrations can replace the PostgreSQL seed/source tables with real
 clients for Hertz systems, or keep the same table-backed adapter pattern if an
@@ -96,7 +99,7 @@ All endpoints accept:
 {
   "raId": "489965957",
   "location": "ORD",
-  "question": "Customer completed eRA but agreement is not visible in TAS."
+  "question": "Customer completed signing but agreement is not visible in the contract vault."
 }
 ```
 
@@ -107,7 +110,7 @@ All endpoints accept:
 | Customer Completion Recovery Agent | `POST /api/ops-agents/completion-recovery` |
 | Counter Support Copilot | `POST /api/ops-agents/counter-copilot` |
 | Compliance & Audit Agent | `POST /api/ops-agents/compliance-audit` |
-| TAS/RMS Health Monitoring Agent | `POST /api/ops-agents/health-monitoring` |
+| Contract Vault/Fleet Ledger Health Monitoring Agent | `POST /api/ops-agents/health-monitoring` |
 | End-to-End Transaction Investigation Agent | `POST /api/ops-agents/transaction-investigation` |
 
 ## Run
@@ -195,11 +198,11 @@ source data and audit runs are stored in PostgreSQL.
 Important tables:
 
 ```text
-era_session_status
-rms_rental_agreements
-dash_counter_states
-stl_submission_metadata
-tas_agreement_status
+signing_portal_sessions
+fleet_ledger_agreements
+counter_console_states
+submission_gateway_metadata
+contract_vault_status
 s3_signed_pdf_status
 keyspace_submission_records
 correlation_events
@@ -214,7 +217,7 @@ Invoke-RestMethod `
   -Method Post `
   -Uri http://localhost:8081/api/agent/ra-completion `
   -ContentType "application/json" `
-  -Body '{"raId":"123","question":"Why cannot this customer finish eRA?"}'
+  -Body '{"raId":"123","question":"Why cannot this customer finish signing?"}'
 
 Invoke-RestMethod http://localhost:8081/api/agent/audit
 
@@ -242,7 +245,7 @@ Invoke-RestMethod `
   -Method Post `
   -Uri http://localhost:8080/api/ops-agents/ra-troubleshooting `
   -ContentType "application/json" `
-  -Body '{"raId":"489965957","location":"ORD","question":"Customer completed eRA but agreement is not visible in TAS."}'
+  -Body '{"raId":"489965957","location":"ORD","question":"Customer completed signing but agreement is not visible in the contract vault."}'
 ```
 
 ## Example: PDF Upload Failure
@@ -250,8 +253,8 @@ Invoke-RestMethod `
 Scenario:
 
 ```text
-Customer signs successfully in TAS.
-STL/RMS submit succeeds.
+Customer signs successfully in the contract vault.
+Submission gateway/fleet ledger submit succeeds.
 The signed PDF does not upload to S3, or the S3 PUT fails.
 ```
 
@@ -261,9 +264,9 @@ signing event.
 The agent checks:
 
 ```text
-TAS agreement state
-STL submit status
-RMS/Dash status
+Contract vault agreement state
+Submission gateway submit status
+Fleet ledger/counter console status
 S3 PDF presence
 Keyspace metadata
 Correlation events/logs
@@ -278,14 +281,14 @@ Root Cause:
 Customer signed successfully, but the signed PDF is missing from S3.
 
 Evidence:
-- TAS state is SIGNED
-- STL submit status is SUBMITTED
+- Contract vault state is SIGNED
+- Submission gateway status is SUBMITTED
 - S3 signed PDF is not present
 - Keyspace metadata is missing or stale
 
 Recommended Action:
-Create an audit/ops ticket and retry PDF archival from the original signed TAS
-artifact after human approval.
+Create an audit/ops ticket and retry PDF archival from the original signed
+contract vault artifact after human approval.
 ```
 
 Safe actions:
@@ -327,18 +330,18 @@ Invoke-RestMethod `
 
 Seed RA examples:
 
-- `123`: TAS signing hash expired
-- `200`: TAS signed but PDF missing from S3
+- `123`: contract vault signing hash expired
+- `200`: contract vault signed but PDF missing from S3
 - `300`: signed PDF exists but Keyspace metadata is missing
 - `400`: customer email mismatch
-- `489965957`: signed successfully, S3 PDF exists, STL succeeded, TAS timeout
+- `489965957`: signed successfully, S3 PDF exists, submission gateway succeeded, contract vault timeout
 - `123456`: license scan missing
 - `777`: customer abandoned at signature step
 - `500`: complete agreement happy path
 
 Seed location examples:
 
-- `Chicago` / `ORD`: RMS unavailable, TAS latency high, ORD and MDW affected
+- `Chicago` / `ORD`: fleet ledger unavailable, contract vault latency high, ORD and MDW affected
 
 ## Guardrails
 

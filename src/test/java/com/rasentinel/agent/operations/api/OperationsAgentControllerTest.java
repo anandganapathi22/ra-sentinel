@@ -24,28 +24,28 @@ class OperationsAgentControllerTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void troubleshootingAgentFindsTasTimeoutForSignedCustomer() throws Exception {
-        postCase("/api/ops-agents/ra-troubleshooting", new AgentCaseRequest("489965957", "ORD", "Customer completed eRA but agreement is not visible in TAS."))
+    void troubleshootingAgentFindsVaultTimeoutForSignedCustomer() throws Exception {
+        postCase("/api/ops-agents/ra-troubleshooting", new AgentCaseRequest("489965957", "ORD", "Customer completed signing but agreement is not visible in the contract vault."))
                 .andExpect(jsonPath("$.agentName").value("Rental Agreement Troubleshooting Agent"))
                 .andExpect(jsonPath("$.severity").value("High"))
-                .andExpect(jsonPath("$.rootCause").value("Customer signed successfully, PDF exists in S3, STL submit succeeded, and TAS API timeout occurred."))
-                .andExpect(jsonPath("$.recommendedAction").value("Resubmit the transaction to TAS after human approval and attach the correlation timeline."))
+                .andExpect(jsonPath("$.rootCause").value("Customer signed successfully, PDF exists in S3, submission gateway succeeded, and contract vault API timeout occurred."))
+                .andExpect(jsonPath("$.recommendedAction").value("Resubmit the transaction to the contract vault after human approval and attach the correlation timeline."))
                 .andExpect(jsonPath("$.blockedActions", hasItem("MODIFY_LEGAL_TEXT")))
-                .andExpect(jsonPath("$.timeline[0].system").value("eRA"));
+                .andExpect(jsonPath("$.timeline[0].system").value("SigningPortal"));
     }
 
     @Test
-    void incidentAgentFindsChicagoRmsOutage() throws Exception {
+    void incidentAgentFindsChicagoFleetLedgerOutage() throws Exception {
         postCase("/api/ops-agents/incident-management", new AgentCaseRequest("489965957", "Chicago", "Chicago location is unable to retrieve agreements."))
                 .andExpect(jsonPath("$.severity").value("High"))
-                .andExpect(jsonPath("$.rootCause").value("RMS endpoint unavailable."))
+                .andExpect(jsonPath("$.rootCause").value("Fleet ledger endpoint unavailable."))
                 .andExpect(jsonPath("$.evidence", hasItem("Affected locations: [ORD, MDW]")));
     }
 
     @Test
     void recoveryAgentFindsAbandonedSignatureStep() throws Exception {
-        postCase("/api/ops-agents/completion-recovery", new AgentCaseRequest("777", "MDW", "Customer started eRA but never completed signing."))
-                .andExpect(jsonPath("$.rootCause").value("Customer abandoned eRA at SIGNATURE step."))
+        postCase("/api/ops-agents/completion-recovery", new AgentCaseRequest("777", "MDW", "Customer started signing but never completed it."))
+                .andExpect(jsonPath("$.rootCause").value("Customer abandoned the signing portal at SIGNATURE step."))
                 .andExpect(jsonPath("$.allowedActions", hasItem("SEND_REMINDER_AFTER_APPROVAL")));
     }
 
@@ -83,7 +83,7 @@ class OperationsAgentControllerTest {
     }
 
     @Test
-    void healthAgentWarnsOnTasLatencyAndBacklog() throws Exception {
+    void healthAgentWarnsOnVaultLatencyAndBacklog() throws Exception {
         postCase("/api/ops-agents/health-monitoring", new AgentCaseRequest("489965957", "Chicago", "Check health."))
                 .andExpect(jsonPath("$.severity").value("Warning"))
                 .andExpect(jsonPath("$.rootCause").value("Operational latency and backlog indicate counter delays are likely."));
@@ -92,9 +92,9 @@ class OperationsAgentControllerTest {
     @Test
     void transactionAgentBuildsTimeline() throws Exception {
         postCase("/api/ops-agents/transaction-investigation", new AgentCaseRequest("489965957", "ORD", "Trace transaction."))
-                .andExpect(jsonPath("$.rootCause").value("Transaction reached TAS but timed out during downstream processing."))
-                .andExpect(jsonPath("$.timeline[3].system").value("RMS"))
-                .andExpect(jsonPath("$.timeline[4].event").value("TAS API timeout"));
+                .andExpect(jsonPath("$.rootCause").value("Transaction reached the contract vault but timed out during downstream processing."))
+                .andExpect(jsonPath("$.timeline[3].system").value("FleetLedger"))
+                .andExpect(jsonPath("$.timeline[4].event").value("Contract vault API timeout"));
     }
 
     @Test

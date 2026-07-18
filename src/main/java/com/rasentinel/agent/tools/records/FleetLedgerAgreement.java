@@ -1,6 +1,6 @@
 package com.rasentinel.agent.tools.records;
 
-public record RmsRentalAgreement(
+public record FleetLedgerAgreement(
         String raId,
         boolean exists,
         String status,

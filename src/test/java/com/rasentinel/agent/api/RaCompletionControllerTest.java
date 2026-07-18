@@ -25,7 +25,7 @@ class RaCompletionControllerTest {
 
     @Test
     void diagnosesSeedRaAndPersistsAuditRun() throws Exception {
-        var body = objectMapper.writeValueAsString(new RaCompletionRequest("123", "Why can't this customer finish eRA?"));
+        var body = objectMapper.writeValueAsString(new RaCompletionRequest("123", "Why can't this customer finish signing?"));
 
         mockMvc.perform(post("/api/agent/ra-completion")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -33,7 +33,7 @@ class RaCompletionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.raId").value("123"))
                 .andExpect(jsonPath("$.status").value("blocked"))
-                .andExpect(jsonPath("$.likelyCause").value("TAS signing hash expired"))
+                .andExpect(jsonPath("$.likelyCause").value("Contract vault signing hash expired"))
                 .andExpect(jsonPath("$.requiresHumanApproval").value(true))
                 .andExpect(jsonPath("$.blockedActions", hasItem("MODIFY_LEGAL_TEXT")))
                 .andExpect(jsonPath("$.blockedActions", hasItem("SIGN_FOR_CUSTOMER")));

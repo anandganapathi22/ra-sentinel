@@ -3,23 +3,23 @@ package com.rasentinel.agent.tools.jdbc;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rasentinel.agent.tools.CorrelationTool;
-import com.rasentinel.agent.tools.DashTool;
-import com.rasentinel.agent.tools.EraTool;
+import com.rasentinel.agent.tools.CounterConsoleTool;
+import com.rasentinel.agent.tools.ContractVaultTool;
+import com.rasentinel.agent.tools.FleetLedgerTool;
 import com.rasentinel.agent.tools.KeyspaceTool;
 import com.rasentinel.agent.tools.OperationalHealthTool;
-import com.rasentinel.agent.tools.RmsTool;
 import com.rasentinel.agent.tools.S3DocumentTool;
-import com.rasentinel.agent.tools.StlTool;
-import com.rasentinel.agent.tools.TasTool;
+import com.rasentinel.agent.tools.SigningPortalTool;
+import com.rasentinel.agent.tools.SubmissionGatewayTool;
 import com.rasentinel.agent.tools.records.CorrelationEvent;
-import com.rasentinel.agent.tools.records.DashCounterState;
-import com.rasentinel.agent.tools.records.EraSessionStatus;
+import com.rasentinel.agent.tools.records.CounterConsoleState;
+import com.rasentinel.agent.tools.records.ContractVaultStatus;
+import com.rasentinel.agent.tools.records.FleetLedgerAgreement;
 import com.rasentinel.agent.tools.records.KeyspaceSubmissionRecord;
-import com.rasentinel.agent.tools.records.RmsRentalAgreement;
 import com.rasentinel.agent.tools.records.S3SignedPdfStatus;
-import com.rasentinel.agent.tools.records.StlSubmissionMetadata;
+import com.rasentinel.agent.tools.records.SigningPortalSession;
+import com.rasentinel.agent.tools.records.SubmissionGatewayMetadata;
 import com.rasentinel.agent.tools.records.SystemHealthSnapshot;
-import com.rasentinel.agent.tools.records.TasAgreementStatus;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -32,7 +32,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Profile("docker")
-public class JdbcOperationalTools implements RmsTool, DashTool, StlTool, TasTool, S3DocumentTool, KeyspaceTool, CorrelationTool, EraTool, OperationalHealthTool {
+public class JdbcOperationalTools implements FleetLedgerTool, CounterConsoleTool, SubmissionGatewayTool, ContractVaultTool, S3DocumentTool, KeyspaceTool, CorrelationTool, SigningPortalTool, OperationalHealthTool {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
@@ -42,43 +42,43 @@ public class JdbcOperationalTools implements RmsTool, DashTool, StlTool, TasTool
     }
 
     @Override
-    public RmsRentalAgreement getRentalAgreement(String raId) {
+    public FleetLedgerAgreement getRentalAgreement(String raId) {
         return jdbcTemplate.query("""
                 select *
-                from rms_rental_agreements
+                from fleet_ledger_agreements
                 where ra_id = ?
-                """, this::mapRms, raId).stream().findFirst()
-                .orElseGet(() -> new RmsRentalAgreement(raId, false, "NOT_FOUND", "", ""));
+                """, this::mapFleetLedger, raId).stream().findFirst()
+                .orElseGet(() -> new FleetLedgerAgreement(raId, false, "NOT_FOUND", "", ""));
     }
 
     @Override
-    public DashCounterState getCounterState(String raId) {
+    public CounterConsoleState getCounterState(String raId) {
         return jdbcTemplate.query("""
                 select *
-                from dash_counter_states
+                from counter_console_states
                 where ra_id = ?
-                """, this::mapDash, raId).stream().findFirst()
-                .orElseGet(() -> new DashCounterState(raId, "UNKNOWN", "UNKNOWN"));
+                """, this::mapCounterConsole, raId).stream().findFirst()
+                .orElseGet(() -> new CounterConsoleState(raId, "UNKNOWN", "UNKNOWN"));
     }
 
     @Override
-    public StlSubmissionMetadata getSubmissionMetadata(String raId) {
+    public SubmissionGatewayMetadata getSubmissionMetadata(String raId) {
         return jdbcTemplate.query("""
                 select *
-                from stl_submission_metadata
+                from submission_gateway_metadata
                 where ra_id = ?
-                """, this::mapStl, raId).stream().findFirst()
-                .orElseGet(() -> new StlSubmissionMetadata(raId, "UNKNOWN", "", "", "corr-unknown"));
+                """, this::mapSubmissionGateway, raId).stream().findFirst()
+                .orElseGet(() -> new SubmissionGatewayMetadata(raId, "UNKNOWN", "", "", "corr-unknown"));
     }
 
     @Override
-    public TasAgreementStatus getAgreementStatus(String raId) {
+    public ContractVaultStatus getAgreementStatus(String raId) {
         return jdbcTemplate.query("""
                 select *
-                from tas_agreement_status
+                from contract_vault_status
                 where ra_id = ?
-                """, this::mapTas, raId).stream().findFirst()
-                .orElseGet(() -> new TasAgreementStatus(raId, "UNKNOWN", "", null));
+                """, this::mapContractVault, raId).stream().findFirst()
+                .orElseGet(() -> new ContractVaultStatus(raId, "UNKNOWN", "", null));
     }
 
     @Override
@@ -112,13 +112,13 @@ public class JdbcOperationalTools implements RmsTool, DashTool, StlTool, TasTool
     }
 
     @Override
-    public EraSessionStatus getSessionStatus(String raId) {
+    public SigningPortalSession getSessionStatus(String raId) {
         return jdbcTemplate.query("""
                 select *
-                from era_session_status
+                from signing_portal_sessions
                 where ra_id = ?
-                """, this::mapEra, raId).stream().findFirst()
-                .orElseGet(() -> new EraSessionStatus(raId, "UNKNOWN", null, null, "UNKNOWN", false, false));
+                """, this::mapSigningPortal, raId).stream().findFirst()
+                .orElseGet(() -> new SigningPortalSession(raId, "UNKNOWN", null, null, "UNKNOWN", false, false));
     }
 
     @Override
@@ -137,8 +137,8 @@ public class JdbcOperationalTools implements RmsTool, DashTool, StlTool, TasTool
                         .orElseGet(() -> new SystemHealthSnapshot(normalized, "OK", "OK", "OK", 800, "OK", 0, Map.of(), List.of())));
     }
 
-    private RmsRentalAgreement mapRms(ResultSet rs, int rowNum) throws SQLException {
-        return new RmsRentalAgreement(
+    private FleetLedgerAgreement mapFleetLedger(ResultSet rs, int rowNum) throws SQLException {
+        return new FleetLedgerAgreement(
                 rs.getString("ra_id"),
                 rs.getBoolean("exists_flag"),
                 rs.getString("status"),
@@ -147,16 +147,16 @@ public class JdbcOperationalTools implements RmsTool, DashTool, StlTool, TasTool
         );
     }
 
-    private DashCounterState mapDash(ResultSet rs, int rowNum) throws SQLException {
-        return new DashCounterState(
+    private CounterConsoleState mapCounterConsole(ResultSet rs, int rowNum) throws SQLException {
+        return new CounterConsoleState(
                 rs.getString("ra_id"),
                 rs.getString("state"),
                 rs.getString("counter_location")
         );
     }
 
-    private StlSubmissionMetadata mapStl(ResultSet rs, int rowNum) throws SQLException {
-        return new StlSubmissionMetadata(
+    private SubmissionGatewayMetadata mapSubmissionGateway(ResultSet rs, int rowNum) throws SQLException {
+        return new SubmissionGatewayMetadata(
                 rs.getString("ra_id"),
                 rs.getString("submit_status"),
                 rs.getString("email"),
@@ -165,8 +165,8 @@ public class JdbcOperationalTools implements RmsTool, DashTool, StlTool, TasTool
         );
     }
 
-    private TasAgreementStatus mapTas(ResultSet rs, int rowNum) throws SQLException {
-        return new TasAgreementStatus(
+    private ContractVaultStatus mapContractVault(ResultSet rs, int rowNum) throws SQLException {
+        return new ContractVaultStatus(
                 rs.getString("ra_id"),
                 rs.getString("state"),
                 rs.getString("agreement_id"),
@@ -201,8 +201,8 @@ public class JdbcOperationalTools implements RmsTool, DashTool, StlTool, TasTool
         );
     }
 
-    private EraSessionStatus mapEra(ResultSet rs, int rowNum) throws SQLException {
-        return new EraSessionStatus(
+    private SigningPortalSession mapSigningPortal(ResultSet rs, int rowNum) throws SQLException {
+        return new SigningPortalSession(
                 rs.getString("ra_id"),
                 rs.getString("status"),
                 instantOrNull(rs.getTimestamp("started_at")),
@@ -216,10 +216,10 @@ public class JdbcOperationalTools implements RmsTool, DashTool, StlTool, TasTool
     private SystemHealthSnapshot mapHealth(ResultSet rs, int rowNum) throws SQLException {
         return new SystemHealthSnapshot(
                 rs.getString("location"),
-                rs.getString("rms_status"),
-                rs.getString("dash_status"),
-                rs.getString("tas_status"),
-                rs.getInt("tas_latency_ms"),
+                rs.getString("fleet_status"),
+                rs.getString("console_status"),
+                rs.getString("vault_status"),
+                rs.getInt("vault_latency_ms"),
                 rs.getString("database_status"),
                 rs.getInt("queue_backlog"),
                 readJson(rs.getString("recent_http_failures_json"), new TypeReference<>() {}),

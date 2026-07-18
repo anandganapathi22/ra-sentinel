@@ -108,7 +108,7 @@ Invoke-RestMethod `
   -Method Post `
   -Uri http://localhost:8081/api/agent/ra-completion `
   -ContentType "application/json" `
-  -Body '{"raId":"123","question":"Why cannot this customer finish eRA?"}'
+  -Body '{"raId":"123","question":"Why cannot this customer finish signing?"}'
 
 Invoke-RestMethod http://localhost:8081/api/agent/audit
 
@@ -133,25 +133,25 @@ Update a source table, call the agent endpoint, then restore the value.
 ```powershell
 docker --context default exec ra-sentinel-postgres `
   psql -U ra_sentinel -d ra_sentinel `
-  -c "update tas_agreement_status set state = 'SIGNED' where ra_id = '489965957';"
+  -c "update contract_vault_status set state = 'SIGNED' where ra_id = '489965957';"
 
 Invoke-RestMethod `
   -Method Post `
   -Uri "$baseUrl/api/ops-agents/ra-troubleshooting" `
   -ContentType "application/json" `
-  -Body '{"raId":"489965957","location":"ORD","question":"Customer completed eRA but agreement is not visible in TAS."}'
+  -Body '{"raId":"489965957","location":"ORD","question":"Customer completed signing but agreement is not visible in the contract vault."}'
 
 docker --context default exec ra-sentinel-postgres `
   psql -U ra_sentinel -d ra_sentinel `
-  -c "update tas_agreement_status set state = 'API_TIMEOUT' where ra_id = '489965957';"
+  -c "update contract_vault_status set state = 'API_TIMEOUT' where ra_id = '489965957';"
 ```
 
 Expected:
 
 ```text
-When TAS state is changed away from API_TIMEOUT in the database, the agent no
-longer returns the TAS timeout root cause. Restoring the row restores the
-original test behavior.
+When the contract vault state is changed away from API_TIMEOUT in the
+database, the agent no longer returns the contract vault timeout root cause.
+Restoring the row restores the original test behavior.
 ```
 
 Direct table inspection:
@@ -162,25 +162,25 @@ docker --context default exec ra-sentinel-postgres `
   -c "select run_id, ra_id, status, likely_cause, created_at from agent_audit_runs order by created_at desc limit 5;"
 ```
 
-## TC-01 TAS Timeout After Successful Signing
+## TC-01 Contract Vault Timeout After Successful Signing
 
 Purpose: prove the troubleshooting agent can correlate successful signing with a
-downstream TAS timeout.
+downstream contract vault timeout.
 
 ```powershell
 Invoke-RestMethod `
   -Method Post `
   -Uri "$baseUrl/api/ops-agents/ra-troubleshooting" `
   -ContentType "application/json" `
-  -Body '{"raId":"489965957","location":"ORD","question":"Customer completed eRA but agreement is not visible in TAS."}'
+  -Body '{"raId":"489965957","location":"ORD","question":"Customer completed signing but agreement is not visible in the contract vault."}'
 ```
 
 Expected:
 
 ```text
 severity: High
-rootCause: Customer signed successfully, PDF exists in S3, STL submit succeeded, and TAS API timeout occurred.
-recommendedAction: Resubmit the transaction to TAS after human approval and attach the correlation timeline.
+rootCause: Customer signed successfully, PDF exists in S3, submission gateway succeeded, and contract vault API timeout occurred.
+recommendedAction: Resubmit the transaction to the contract vault after human approval and attach the correlation timeline.
 blockedActions includes MODIFY_LEGAL_TEXT
 ```
 
@@ -229,8 +229,8 @@ allowedActions includes RETRY_SYNC_AFTER_APPROVAL
 
 ## TC-04 Complete Agreement Happy Path
 
-Purpose: prove the agent can return a no-action result when TAS, S3, and
-Keyspace agree.
+Purpose: prove the agent can return a no-action result when the contract vault,
+S3, and Keyspace agree.
 
 ```powershell
 Invoke-RestMethod `
@@ -251,20 +251,20 @@ allowedActions includes NO_ACTION
 
 ## TC-05 Customer Abandoned Signing
 
-Purpose: prove the recovery agent detects abandoned eRA sessions.
+Purpose: prove the recovery agent detects abandoned signing portal sessions.
 
 ```powershell
 Invoke-RestMethod `
   -Method Post `
   -Uri "$baseUrl/api/ops-agents/completion-recovery" `
   -ContentType "application/json" `
-  -Body '{"raId":"777","location":"MDW","question":"Customer started eRA but never completed signing."}'
+  -Body '{"raId":"777","location":"MDW","question":"Customer started signing but never completed it."}'
 ```
 
 Expected:
 
 ```text
-rootCause: Customer abandoned eRA at SIGNATURE step.
+rootCause: Customer abandoned the signing portal at SIGNATURE step.
 allowedActions includes SEND_REMINDER_AFTER_APPROVAL
 ```
 
@@ -303,13 +303,14 @@ Expected:
 
 ```text
 severity: High
-rootCause: RMS endpoint unavailable.
+rootCause: Fleet ledger endpoint unavailable.
 evidence includes Affected locations: [ORD, MDW]
 ```
 
 ## TC-08 Health Monitoring Warning
 
-Purpose: prove the monitoring agent detects TAS latency and queue backlog.
+Purpose: prove the monitoring agent detects contract vault latency and queue
+backlog.
 
 ```powershell
 Invoke-RestMethod `
@@ -341,8 +342,8 @@ Invoke-RestMethod `
 Expected:
 
 ```text
-rootCause: Transaction reached TAS but timed out during downstream processing.
-timeline includes eRA, STL, RMS, TAS events
+rootCause: Transaction reached the contract vault but timed out during downstream processing.
+timeline includes SigningPortal, SubmissionGateway, FleetLedger, ContractVault events
 ```
 
 ## TC-10 Request Validation

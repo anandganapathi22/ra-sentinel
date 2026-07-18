@@ -1,30 +1,30 @@
 package com.rasentinel.agent.tools.mock;
 
 import com.rasentinel.agent.tools.CorrelationTool;
-import com.rasentinel.agent.tools.DashTool;
-import com.rasentinel.agent.tools.EraTool;
+import com.rasentinel.agent.tools.CounterConsoleTool;
+import com.rasentinel.agent.tools.ContractVaultTool;
+import com.rasentinel.agent.tools.FleetLedgerTool;
 import com.rasentinel.agent.tools.KeyspaceTool;
 import com.rasentinel.agent.tools.OperationalHealthTool;
-import com.rasentinel.agent.tools.RmsTool;
 import com.rasentinel.agent.tools.S3DocumentTool;
-import com.rasentinel.agent.tools.StlTool;
-import com.rasentinel.agent.tools.TasTool;
+import com.rasentinel.agent.tools.SigningPortalTool;
+import com.rasentinel.agent.tools.SubmissionGatewayTool;
 import com.rasentinel.agent.tools.records.CorrelationEvent;
-import com.rasentinel.agent.tools.records.DashCounterState;
-import com.rasentinel.agent.tools.records.EraSessionStatus;
+import com.rasentinel.agent.tools.records.CounterConsoleState;
+import com.rasentinel.agent.tools.records.ContractVaultStatus;
+import com.rasentinel.agent.tools.records.FleetLedgerAgreement;
 import com.rasentinel.agent.tools.records.KeyspaceSubmissionRecord;
-import com.rasentinel.agent.tools.records.RmsRentalAgreement;
 import com.rasentinel.agent.tools.records.S3SignedPdfStatus;
-import com.rasentinel.agent.tools.records.StlSubmissionMetadata;
+import com.rasentinel.agent.tools.records.SigningPortalSession;
+import com.rasentinel.agent.tools.records.SubmissionGatewayMetadata;
 import com.rasentinel.agent.tools.records.SystemHealthSnapshot;
-import com.rasentinel.agent.tools.records.TasAgreementStatus;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
 @Profile("!docker")
-public class InMemoryTools implements RmsTool, DashTool, StlTool, TasTool, S3DocumentTool, KeyspaceTool, CorrelationTool, EraTool, OperationalHealthTool {
+public class InMemoryTools implements FleetLedgerTool, CounterConsoleTool, SubmissionGatewayTool, ContractVaultTool, S3DocumentTool, KeyspaceTool, CorrelationTool, SigningPortalTool, OperationalHealthTool {
     private final InMemoryRaToolData data;
 
     public InMemoryTools(InMemoryRaToolData data) {
@@ -32,23 +32,23 @@ public class InMemoryTools implements RmsTool, DashTool, StlTool, TasTool, S3Doc
     }
 
     @Override
-    public RmsRentalAgreement getRentalAgreement(String raId) {
-        return data.rms(raId);
+    public FleetLedgerAgreement getRentalAgreement(String raId) {
+        return data.fleetLedger(raId);
     }
 
     @Override
-    public DashCounterState getCounterState(String raId) {
-        return data.dash(raId);
+    public CounterConsoleState getCounterState(String raId) {
+        return data.counterConsole(raId);
     }
 
     @Override
-    public StlSubmissionMetadata getSubmissionMetadata(String raId) {
-        return data.stl(raId);
+    public SubmissionGatewayMetadata getSubmissionMetadata(String raId) {
+        return data.submissionGateway(raId);
     }
 
     @Override
-    public TasAgreementStatus getAgreementStatus(String raId) {
-        return data.tas(raId);
+    public ContractVaultStatus getAgreementStatus(String raId) {
+        return data.contractVault(raId);
     }
 
     @Override
@@ -67,8 +67,8 @@ public class InMemoryTools implements RmsTool, DashTool, StlTool, TasTool, S3Doc
     }
 
     @Override
-    public EraSessionStatus getSessionStatus(String raId) {
-        return data.era(raId);
+    public SigningPortalSession getSessionStatus(String raId) {
+        return data.signingPortal(raId);
     }
 
     @Override

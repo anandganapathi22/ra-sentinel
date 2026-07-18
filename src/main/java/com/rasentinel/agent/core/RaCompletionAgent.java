@@ -4,12 +4,12 @@ import com.rasentinel.agent.api.RaCompletionRequest;
 import com.rasentinel.agent.api.RaCompletionResponse;
 import com.rasentinel.agent.audit.AgentAuditStore;
 import com.rasentinel.agent.tools.CorrelationTool;
-import com.rasentinel.agent.tools.DashTool;
+import com.rasentinel.agent.tools.CounterConsoleTool;
+import com.rasentinel.agent.tools.ContractVaultTool;
+import com.rasentinel.agent.tools.FleetLedgerTool;
 import com.rasentinel.agent.tools.KeyspaceTool;
-import com.rasentinel.agent.tools.RmsTool;
 import com.rasentinel.agent.tools.S3DocumentTool;
-import com.rasentinel.agent.tools.StlTool;
-import com.rasentinel.agent.tools.TasTool;
+import com.rasentinel.agent.tools.SubmissionGatewayTool;
 import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,10 +18,10 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class RaCompletionAgent {
-    private final RmsTool rmsTool;
-    private final DashTool dashTool;
-    private final StlTool stlTool;
-    private final TasTool tasTool;
+    private final FleetLedgerTool fleetLedgerTool;
+    private final CounterConsoleTool counterConsoleTool;
+    private final SubmissionGatewayTool submissionGatewayTool;
+    private final ContractVaultTool contractVaultTool;
     private final S3DocumentTool s3DocumentTool;
     private final KeyspaceTool keyspaceTool;
     private final CorrelationTool correlationTool;
@@ -30,10 +30,10 @@ public class RaCompletionAgent {
     private final Clock clock;
 
     public RaCompletionAgent(
-            RmsTool rmsTool,
-            DashTool dashTool,
-            StlTool stlTool,
-            TasTool tasTool,
+            FleetLedgerTool fleetLedgerTool,
+            CounterConsoleTool counterConsoleTool,
+            SubmissionGatewayTool submissionGatewayTool,
+            ContractVaultTool contractVaultTool,
             S3DocumentTool s3DocumentTool,
             KeyspaceTool keyspaceTool,
             CorrelationTool correlationTool,
@@ -41,10 +41,10 @@ public class RaCompletionAgent {
             AgentAuditStore auditStore,
             Clock clock
     ) {
-        this.rmsTool = rmsTool;
-        this.dashTool = dashTool;
-        this.stlTool = stlTool;
-        this.tasTool = tasTool;
+        this.fleetLedgerTool = fleetLedgerTool;
+        this.counterConsoleTool = counterConsoleTool;
+        this.submissionGatewayTool = submissionGatewayTool;
+        this.contractVaultTool = contractVaultTool;
         this.s3DocumentTool = s3DocumentTool;
         this.keyspaceTool = keyspaceTool;
         this.correlationTool = correlationTool;
@@ -56,20 +56,20 @@ public class RaCompletionAgent {
     public RaCompletionResponse diagnose(RaCompletionRequest request) {
         String raId = request.raId().trim();
         var snapshot = new RaSnapshot(
-                rmsTool.getRentalAgreement(raId),
-                dashTool.getCounterState(raId),
-                stlTool.getSubmissionMetadata(raId),
-                tasTool.getAgreementStatus(raId),
+                fleetLedgerTool.getRentalAgreement(raId),
+                counterConsoleTool.getCounterState(raId),
+                submissionGatewayTool.getSubmissionMetadata(raId),
+                contractVaultTool.getAgreementStatus(raId),
                 s3DocumentTool.getSignedPdfStatus(raId),
                 keyspaceTool.getSubmissionRecord(raId),
                 correlationTool.getEvents(raId)
         );
         var diagnosis = classifier.classify(snapshot);
         var toolResults = new LinkedHashMap<String, Object>();
-        toolResults.put("rms", snapshot.rms());
-        toolResults.put("dash", snapshot.dash());
-        toolResults.put("stl", snapshot.stl());
-        toolResults.put("tas", snapshot.tas());
+        toolResults.put("fleet", snapshot.fleet());
+        toolResults.put("console", snapshot.console());
+        toolResults.put("gateway", snapshot.gateway());
+        toolResults.put("vault", snapshot.vault());
         toolResults.put("s3", snapshot.s3());
         toolResults.put("keyspace", snapshot.keyspace());
         toolResults.put("correlationEvents", snapshot.correlationEvents());

@@ -15,8 +15,8 @@ import org.springframework.stereotype.Service;
 public class IncidentManagementAgent {
     private static final String AGENT_NAME = "Incident Management Agent";
     private static final String TASK_INSTRUCTION = "Determine whether there is an active platform incident "
-            + "affecting this location based on RMS/Dash/TAS/database/queue health, and if so, its severity and "
-            + "recommended mitigation.";
+            + "affecting this location based on fleet ledger/counter console/contract vault/database/queue "
+            + "health, and if so, its severity and recommended mitigation.";
     private static final List<String> VOCABULARY = concat(ReportSupport.APPROVAL_GATED_OPERATIONS, "CONTINUE_MONITORING");
 
     private final OperationalHealthTool healthTool;
@@ -33,25 +33,25 @@ public class IncidentManagementAgent {
         var location = request.location() == null || request.location().isBlank() ? "GLOBAL" : request.location();
         var health = healthTool.getHealth(location);
         var evidence = new ArrayList<String>();
-        evidence.add("RMS status is " + health.rmsStatus());
-        evidence.add("Dash status is " + health.dashStatus());
-        evidence.add("TAS status is " + health.tasStatus());
-        evidence.add("TAS latency is " + health.tasLatencyMs() + "ms");
+        evidence.add("Fleet ledger status is " + health.fleetStatus());
+        evidence.add("Counter console status is " + health.consoleStatus());
+        evidence.add("Contract vault status is " + health.vaultStatus());
+        evidence.add("Contract vault latency is " + health.vaultLatencyMs() + "ms");
         evidence.add("Database status is " + health.databaseStatus());
         evidence.add("Queue backlog is " + health.queueBacklog());
         evidence.add("Recent HTTP failures: " + health.recentHttpFailures());
         evidence.add("Affected locations: " + health.affectedLocations());
 
         Supplier<OperationsAgentReport> deterministic = () -> {
-            if ("UNAVAILABLE".equalsIgnoreCase(health.rmsStatus())) {
+            if ("UNAVAILABLE".equalsIgnoreCase(health.fleetStatus())) {
                 return reports.report(
                         AGENT_NAME,
                         location,
                         "High",
-                        "RMS endpoint unavailable.",
+                        "Fleet ledger endpoint unavailable.",
                         evidence,
                         List.of(),
-                        "Fail over to the secondary RMS endpoint after incident commander approval.",
+                        "Fail over to the secondary fleet ledger endpoint after incident commander approval.",
                         true,
                         ReportSupport.APPROVAL_GATED_OPERATIONS
                 );
