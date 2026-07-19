@@ -383,3 +383,31 @@ deterministic `if/else` — this is the default in local dev and in the test sui
 so no API key is required to build or test the project. Model, effort, and timeout
 are configurable via `rasentinel.ai.model` / `rasentinel.ai.effort` /
 `rasentinel.ai.timeout-ms` in `application.yml`.
+
+## Project History (Phasewise)
+
+1. **Build RA Sentinel operations assistant** — initial Spring Boot service:
+   the 7 `ops-agents` endpoints, the `RaCompletionAgent`/`RaCompletionClassifier`
+   deterministic diagnosis path, in-memory tool adapters and seed data, the
+   audit store abstraction (in-memory + JDBC), Docker/Compose setup, and the
+   first pass of docs, sequence diagram, and test cases.
+2. **Read operational agent data from Postgres** — added `JdbcOperationalTools`
+   and the full `schema.sql` source-state tables so the `docker` Spring profile
+   reads signing/fleet/submission/vault/S3/Keyspace/log/health data from
+   PostgreSQL instead of in-memory seeds, with docs and test cases updated to
+   match.
+3. **Add IDE editor tabs and data source config** — checked in `.idea` editor
+   tab and PostgreSQL data source config for local development convenience.
+4. **Add LLM reasoning layer to the ops agents, with deterministic fallback** —
+   introduced `AnthropicAiReasoningClient` and `RaSentinelAiProperties` so each
+   agent asks Claude to synthesize `severity`/`rootCause`/`recommendedAction`
+   from the same evidence the deterministic tools gather, while keeping the
+   original `if/else` as an automatic fallback when no API key is configured.
+5. **Reflect the AI reasoning layer in the sequence diagram and test-case
+   docs** — updated `docs/sequence-diagram.md` and `docs/test-cases.md` to
+   document the new AI reasoning step and guardrails.
+6. **Rename eRA/STL/RMS/Dash/TAS to generic system names** — renamed the
+   internal tool classes and data records to vendor-neutral names
+   (`SigningPortalTool`, `SubmissionGatewayTool`, `FleetLedgerTool`,
+   `CounterConsoleTool`, `ContractVaultTool`) across code, schema, docs, and
+   scripts, with no behavior change.
